@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { LucideSearch } from 'lucide-react';
 
 interface SearchInputProps {
   onResult: (coords: { lat: number; lon: number }) => void; // callback al page
@@ -40,16 +41,40 @@ export default function SearchInput({ onResult }: SearchInputProps) {
   };
 
   return (
-   <div className="flex gap-2 p-2 bg-white/90 rounded shadow">
+   <div
+      className="
+        flex items-center
+        rounded-xl
+        px-3 py-2
+        backdrop-blur-md
+        bg-white/40 dark:bg-gray-800/40
+        shadow-lg
+        w-full
+      "
+    >
       <Input
         placeholder="Introduce una dirección"
         value={direccion}
         onChange={(e) => setDireccion(e.target.value)}
-        onKeyDown={handleKeyDown} // <-- Aquí detectamos Enter
-        className="w-64"
+        onKeyDown={handleKeyDown}
+        className="
+          flex-1
+          bg-transparent
+          border-none
+          focus:ring-0
+          text-black dark:text-white
+          placeholder-black/60 dark:placeholder-white/60
+        "
       />
-      <Button onClick={handleSearch} disabled={loading}>
-        {loading ? 'Buscando...' : 'Buscar'}
+
+      <Button
+        onClick={handleSearch}
+        disabled={loading}
+        className="ml-2 p-2 flex items-center justify-center"
+        variant="ghost"
+        size="icon"
+      >
+        {loading ? '...' : <LucideSearch className="w-5 h-5 text-black dark:text-white" />}
       </Button>
     </div>
   );
