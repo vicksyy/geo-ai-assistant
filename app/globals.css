@@ -115,6 +115,22 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+.report-btn {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background-color: #2563eb; /* azul moderno */
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.report-btn:hover {
+  background-color: #1e40af;
+}
+
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

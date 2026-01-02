@@ -3,6 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 
+declare global {
+  interface Window {
+    generarInforme: (lat: number, lon: number, street: string) => void;
+  }
+}
+
+
 interface MapViewProps {
   coordenadas?: { lat: number; lon: number } | null;
   toolData?: { tool: string; data: any } | null;
@@ -15,6 +22,12 @@ export default function MapView({ coordenadas, toolData, onMapClick }: MapViewPr
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [informe, setInforme] = useState<string | null>(null);
+  const [loadingInforme, setLoadingInforme] = useState(false);
+  const [mostrarInforme, setMostrarInforme] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+
 
   // Inicializar mapa
   useEffect(() => {
@@ -100,12 +113,49 @@ const popupOptions = {
 markerRef.current
   .bindPopup(
     `<div class="popup-content">
-      ${streetName}<br/>
-      📍 ${coords.lat.toFixed(6)}, ${coords.lon.toFixed(6)}
+      <strong>${streetName}<strong/><br/>
+      📍 ${coords.lat.toFixed(6)}, ${coords.lon.toFixed(6)}<br/><br/>
+      <button class="report-btn" onclick="generarInforme(${coords.lat}, ${coords.lon}, '${streetName}')">Generar Informe</button>
     </div>`,
     popupOptions
   )
   .openPopup();
+
+ window.generarInforme = async (lat: number, lon: number, street: string) => {
+  setMostrarInforme(true);
+  setLoadingInforme(true);
+  setInforme(null);
+
+  // Cancelar cualquier llamada previa
+  if (abortControllerRef.current) {
+    abortControllerRef.current.abort();
+  }
+  const controller = new AbortController();
+  abortControllerRef.current = controller;
+
+  try {
+    const res = await fetch('/api/ia', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat, lon, street }),
+      signal: controller.signal,
+    });
+
+    const data = await res.json();
+    setInforme(data.informe || 'No se pudo generar el informe');
+  } catch (err) {
+    if ((err as any).name === 'AbortError') {
+      console.log('Llamada cancelada');
+    } else {
+      console.error(err);
+      setInforme('Error al generar el informe');
+    }
+  } finally {
+    setLoadingInforme(false);
+    abortControllerRef.current = null;
+  }
+};
+
 
 
 
@@ -179,10 +229,103 @@ markerRef.current
     }
   }, [toolData]);
 
-  return (
+return (
   <div className="relative h-full w-full">
+
+    {/* MAPA */}
     <div id="map" className="h-full w-full" />
+
+    {/* PANEL DE INFORME FLOTANTE */}
+    <div
+      className={`
+        absolute
+        top-4
+        left-4
+        w-[380px]
+        h-[calc(100%-2rem)]
+        bg-white
+        shadow-xl
+        rounded-lg
+        z-[1000]
+        p-4
+        flex
+        flex-col
+        overflow-hidden
+        transition-all
+        duration-300
+        ease-out
+        transform
+        ${mostrarInforme ? 'translate-x-0 opacity-100' : '-translate-x-[100%] opacity-0'}
+      `}
+    >
+      {/* HEADER */}
+      <div className="flex justify-between items-center mb-3 flex-shrink-0">
+        <h2 className="text-lg font-semibold">
+          Informe IA
+        </h2>
+
+        <button
+          className="text-gray-400 hover:text-gray-700"
+          onClick={() => {
+            setMostrarInforme(false);
+            // Cancelar cualquier llamada a la IA
+            if (abortControllerRef.current) {
+              abortControllerRef.current.abort();
+            }
+          }}
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* CONTENIDO SCROLL */}
+      <div className="flex-1 overflow-y-auto">
+        {loadingInforme && (
+          <p className="text-sm text-gray-500">
+            Generando informe...
+          </p>
+        )}
+
+        {!loadingInforme && !informe && (
+          <p className="text-sm text-gray-400">
+            Haz click en el mapa y genera un informe
+          </p>
+        )}
+
+        {!loadingInforme && informe && (
+          <div className="text-sm whitespace-pre-line">
+            {informe}
+          </div>
+        )}
+      </div>
+
+      {/* FOOTER - BOTÓN EXPORTAR PDF FIJO ABAJO */}
+      {!loadingInforme && informe && (
+        <div className="mt-4 flex-shrink-0 border-t border-gray-300 pt-4">
+          <button
+            className="
+              w-full
+              py-2
+              rounded-md
+              bg-blue-600
+              text-white
+              text-sm
+              font-medium
+              hover:bg-blue-700
+              transition
+            "
+            onClick={() => console.log('Exportar PDF')}
+          >
+            Exportar PDF
+          </button>
+        </div>
+      )}
+    </div>
   </div>
 );
+
+
+
+
 
 }
