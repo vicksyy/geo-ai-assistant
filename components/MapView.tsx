@@ -236,91 +236,101 @@ return (
     <div id="map" className="h-full w-full" />
 
     {/* PANEL DE INFORME FLOTANTE */}
-    <div
-      className={`
-        absolute
-        top-4
-        left-4
-        w-[380px]
-        h-[calc(100%-2rem)]
-        bg-white
-        shadow-xl
-        rounded-lg
-        z-[1000]
-        p-4
-        flex
-        flex-col
-        overflow-hidden
-        transition-all
-        duration-300
-        ease-out
-        transform
-        ${mostrarInforme ? 'translate-x-0 opacity-100' : '-translate-x-[100%] opacity-0'}
-      `}
+<div
+  className={`
+    fixed
+    left-4
+    right-4
+    bottom-4
+    h-[40%]
+    md:absolute
+    md:top-4
+    md:left-4
+    md:w-[380px]
+    md:h-[calc(100%-2rem)]
+    bg-white
+    shadow-xl
+    rounded-t-lg
+    md:rounded-lg
+    z-[1000]
+    p-4
+    flex
+    flex-col
+    overflow-hidden
+    transition-all
+    duration-300
+    ease-out
+    transform
+    ${mostrarInforme ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}
+     md:translate-y-0
+    ${mostrarInforme ? 'md:translate-x-0 md:opacity-100' : 'md:-translate-x-full md:opacity-0'}
+  `}
+>
+  {/* HEADER */}
+  <div className="flex justify-between items-center mb-3 flex-shrink-0">
+    <h2 className="text-lg font-semibold">
+      Informe IA
+    </h2>
+
+    <button
+      className="text-gray-400 hover:text-gray-700"
+      onClick={() => {
+        setMostrarInforme(false);
+
+        // Cancelar cualquier llamada a la IA
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+      }}
     >
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-3 flex-shrink-0">
-        <h2 className="text-lg font-semibold">
-          Informe IA
-        </h2>
+      ✕
+    </button>
+  </div>
 
-        <button
-          className="text-gray-400 hover:text-gray-700"
-          onClick={() => {
-            setMostrarInforme(false);
-            // Cancelar cualquier llamada a la IA
-            if (abortControllerRef.current) {
-              abortControllerRef.current.abort();
-            }
-          }}
-        >
-          ✕
-        </button>
+  {/* CONTENIDO SCROLL */}
+  <div className="flex-1 overflow-y-auto">
+    {loadingInforme && (
+      <p className="text-sm text-gray-500">
+        Generando informe...
+      </p>
+    )}
+
+    {!loadingInforme && !informe && (
+      <p className="text-sm text-gray-400">
+        Haz click en el mapa y genera un informe
+      </p>
+    )}
+
+    {!loadingInforme && informe && (
+      <div className="text-sm whitespace-pre-line">
+        {informe}
       </div>
+    )}
+  </div>
 
-      {/* CONTENIDO SCROLL */}
-      <div className="flex-1 overflow-y-auto">
-        {loadingInforme && (
-          <p className="text-sm text-gray-500">
-            Generando informe...
-          </p>
-        )}
-
-        {!loadingInforme && !informe && (
-          <p className="text-sm text-gray-400">
-            Haz click en el mapa y genera un informe
-          </p>
-        )}
-
-        {!loadingInforme && informe && (
-          <div className="text-sm whitespace-pre-line">
-            {informe}
-          </div>
-        )}
-      </div>
-
-      {/* FOOTER - BOTÓN EXPORTAR PDF FIJO ABAJO */}
-      {!loadingInforme && informe && (
-        <div className="mt-4 flex-shrink-0 border-t border-gray-300 pt-4">
-          <button
-            className="
-              w-full
-              py-2
-              rounded-md
-              bg-blue-600
-              text-white
-              text-sm
-              font-medium
-              hover:bg-blue-700
-              transition
-            "
-            onClick={() => console.log('Exportar PDF')}
-          >
-            Exportar PDF
-          </button>
-        </div>
-      )}
+  {/* FOOTER - BOTÓN EXPORTAR PDF FIJO ABAJO */}
+  {!loadingInforme && informe && (
+    <div className="mt-4 flex-shrink-0 border-t border-gray-300 pt-4">
+      <button
+        className="
+          w-full
+          py-2
+          rounded-md
+          bg-blue-600
+          text-white
+          text-sm
+          font-medium
+          hover:bg-blue-700
+          transition
+        "
+        onClick={() => console.log('Exportar PDF')}
+      >
+        Exportar PDF
+      </button>
     </div>
+  )}
+</div>
+
   </div>
 );
 

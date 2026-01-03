@@ -18,7 +18,7 @@ export default function LeftSidebar({ onToolSelect }: LeftSidebarProps) {
   return (
     <>
       {/* Desktop */}
-      <aside className="hidden md:flex w-[3vw] min-w-12 flex-col items-center justify-center gap-6 z-30 bg-[#F4EDE6] relative">
+      <aside className="hidden md:flex w-[3vw] min-w-12 flex-col items-center justify-center gap-6 z-3000 bg-[#F4EDE6] relative">
         {tools.map((tool, index) => (
           <div
             key={tool.key}
