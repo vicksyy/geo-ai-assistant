@@ -29,8 +29,7 @@ export default function FloatingSearch({
     {!open ? (
       <button
         onClick={() => setOpen(true)}
-        className="w-10 h-10 rounded-full bg-white/50 dark:bg-gray-700/50 shadow-lg flex items-center justify-center"
-      >
+        className="w-10 h-10 rounded-full bg-white/50 dark:bg-gray-700/50 shadow-lg flex items-center justify-center">
         <LucideSearch className="w-5 h-5 text-black dark:text-white" />
       </button>
     ) : (
