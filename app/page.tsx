@@ -2,49 +2,76 @@
 
 import { useState } from 'react';
 import MapView from '../components/MapView';
-import SearchInput from '../components/SearchInput';
 import LeftSidebar from '../components/LeftSidebar';
 import FloatingSearch from '../components/FloatingSearch';
+import { BaseLayerId, OverlayLayerId } from '../map/layers';
+import ComparePanel from '../components/ComparePanel';
 
 
 
 export default function HomePage() {
   const [coordenadas, setCoordenadas] = useState<{ lat: number; lon: number } | null>(null);
-  const [toolData, setToolData] = useState<{ tool: string; data: any } | null>(null);
-
-const handleToolSelect = async (tool:'capasUrbanismo'|'riesgoInundacion'|'contaminacion') => {
-  if (!coordenadas) return alert('Selecciona un punto en el mapa primero');
-
-  try {
-    const params = new URLSearchParams({
-      lat: coordenadas.lat.toString(),
-      lon: coordenadas.lon.toString(),
-    });
-
-    const res = await fetch(`/api/tools/${tool}?${params.toString()}`);
-    if (!res.ok) throw new Error('Error llamando al tool');
-
-    const data = await res.json();
-        console.log('Data del tool', tool, data); // <- Aquí lo verás en la consola
-    setToolData({ tool, data });
-  } catch (err) {
-    console.error(err);
-    alert('Error llamando al tool');
-  }
-};
+  const [selectedPlace, setSelectedPlace] = useState<{
+    label: string;
+    placeClass?: string | null;
+    placeType?: string | null;
+  } | null>(null);
+  const [layersOpen, setLayersOpen] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [baseLayerId, setBaseLayerId] = useState<BaseLayerId>('osm');
+  const [overlayLayerIds, setOverlayLayerIds] = useState<OverlayLayerId[]>([]);
+  const aqicnToken = process.env.NEXT_PUBLIC_AQICN_TOKEN ?? '';
+  const aqiAvailable = Boolean(aqicnToken);
 
 
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      <LeftSidebar onToolSelect={handleToolSelect} />
+      <LeftSidebar
+        layersOpen={layersOpen}
+        onLayersToggle={() => setLayersOpen((prev) => !prev)}
+        onCompareClick={() => setCompareOpen((prev) => !prev)}
+        baseLayerId={baseLayerId}
+        overlayLayerIds={overlayLayerIds}
+        onBaseLayerChange={(id) => setBaseLayerId(id)}
+        onOverlayToggle={(id) =>
+          setOverlayLayerIds((prev) =>
+            prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+          )
+        }
+        aqiAvailable={aqiAvailable}
+      />
 
       <div className="relative flex-1">
         <div className="absolute top-4 right-4 md:left-1/2 md:-translate-x-1/2 z-[1000]">
-          <FloatingSearch onResult={setCoordenadas} />
+          <FloatingSearch
+            onResult={(result) => {
+              setCoordenadas({ lat: result.lat, lon: result.lon });
+              if (result.displayName) {
+                setSelectedPlace({
+                  label: result.displayName,
+                  placeClass: result.placeClass ?? null,
+                  placeType: result.placeType ?? null,
+                });
+              } else {
+                setSelectedPlace(null);
+              }
+            }}
+          />
         </div>
 
-       <MapView coordenadas={coordenadas}  onMapClick={(coords) => setCoordenadas(coords)} toolData={toolData} />
+        <ComparePanel open={compareOpen} onClose={() => setCompareOpen(false)} />
+
+       <MapView
+         coordenadas={coordenadas}
+         onMapClick={(coords) => {
+           setCoordenadas(coords);
+           setSelectedPlace(null);
+         }}
+         layerState={{ baseId: baseLayerId, overlays: overlayLayerIds }}
+         aqicnToken={aqicnToken}
+         selectedPlace={selectedPlace}
+       />
       </div>
     </div>
   );

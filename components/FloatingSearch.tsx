@@ -7,7 +7,13 @@ import { LucideSearch } from 'lucide-react';
 export default function FloatingSearch({
   onResult,
 }: {
-  onResult: (coords: { lat: number; lon: number }) => void;
+  onResult: (result: {
+    lat: number;
+    lon: number;
+    displayName?: string | null;
+    placeClass?: string | null;
+    placeType?: string | null;
+  }) => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -45,4 +51,3 @@ export default function FloatingSearch({
 
   );
 }
-

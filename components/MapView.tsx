@@ -2,32 +2,503 @@
 
 import { useEffect, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
+import { BaseLayerId, OverlayLayerId, buildLayers } from '../map/layers';
 
 declare global {
   interface Window {
-    generarInforme: (lat: number, lon: number, street: string) => void;
+    generarInforme: (lat: number, lon: number, street: string, isPlace?: boolean) => void;
   }
 }
 
 
 interface MapViewProps {
   coordenadas?: { lat: number; lon: number } | null;
-  toolData?: { tool: string; data: any } | null;
   onMapClick?: (coords: { lat:number, lon:number }) => void;
+  layerState?: { baseId: BaseLayerId; overlays: OverlayLayerId[] };
+  aqicnToken?: string;
+  selectedPlace?: {
+    label: string;
+    placeClass?: string | null;
+    placeType?: string | null;
+  } | null;
 
 }
 
 
-export default function MapView({ coordenadas, toolData, onMapClick }: MapViewProps) {
+export default function MapView({ coordenadas, onMapClick, layerState, aqicnToken, selectedPlace }: MapViewProps) {
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
+  const layersRef = useRef<{
+    baseLayers: Record<BaseLayerId, any>;
+    overlayLayers: Record<OverlayLayerId, any>;
+  } | null>(null);
+  const activeBaseLayerRef = useRef<BaseLayerId | null>(null);
+  const activeOverlayLayerIdsRef = useRef<Set<OverlayLayerId>>(new Set());
+  const initialLayerStateRef = useRef(layerState);
+  const aqiCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const aqiMoveHandlerRef = useRef<(() => void) | null>(null);
+  const aqiAbortRef = useRef<AbortController | null>(null);
+  const aqiStationsRef = useRef<{ lat: number; lon: number; aqi: number }[]>([]);
+  const aqiFetchBoundsRef = useRef<any>(null);
+  const aqiLabelsLayerRef = useRef<any>(null);
+  const icaStationsRef = useRef<{ lat: number; lon: number; indice: number }[]>([]);
+  const icaUpdatedAtRef = useRef<number | null>(null);
+  const aqiFrameRef = useRef<number | null>(null);
+  const aqiDrawHandlerRef = useRef<(() => void) | null>(null);
+  const cityLabelsRef = useRef<any>(null);
+  const countryLabelsRef = useRef<any>(null);
+  const labelsInitializedRef = useRef(false);
+
+  const isPlaceSelection = (place?: {
+    label: string;
+    placeClass?: string | null;
+    placeType?: string | null;
+  } | null) => {
+    if (!place) return false;
+    const type = place.placeType ?? '';
+    if (place.placeClass === 'boundary' && type === 'administrative') return true;
+    const placeTypes = new Set([
+      'country',
+      'state',
+      'region',
+      'province',
+      'county',
+      'municipality',
+      'city',
+      'town',
+      'village',
+      'hamlet',
+      'borough',
+      'district',
+      'city_district',
+      'suburb',
+    ]);
+    return placeTypes.has(type);
+  };
+
+  const bindMarkerPopup = async (
+    coords: { lat: number; lon: number },
+    labelOverride?: string | null,
+    isPlace = false
+  ) => {
+    if (!mapRef.current || !markerRef.current) return;
+
+    let streetName = '';
+    let streetLabel = labelOverride ?? 'Sin nombre';
+
+    if (!labelOverride) {
+      try {
+        const url = `/api/tools/buscarCoordenadas?lat=${coords.lat}&lon=${coords.lon}&zoom=18`;
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error('No se pudo resolver la direccion');
+        }
+        const data = await res.json();
+
+        const address = data.address;
+        if (address) {
+          const streetOptions = [
+            address.road,
+            address.pedestrian,
+            address.footway,
+            address.path,
+            address.cycleway,
+            address.residential,
+            address.square,
+            address.neighbourhood,
+            address.suburb,
+            address.quarter,
+          ];
+          const areaOptions = [
+            address.suburb,
+            address.neighbourhood,
+            address.borough,
+            address.city_district,
+            address.quarter,
+          ];
+          const cityOptions = [
+            address.city,
+            address.town,
+            address.village,
+            address.municipality,
+            address.county,
+            address.state,
+          ];
+          const street = streetOptions.find(Boolean);
+          const area = areaOptions.find(Boolean);
+          const city = cityOptions.find(Boolean);
+          const parts = [];
+          if (street) parts.push(street);
+          if (address.house_number) parts.push(address.house_number);
+          if (area) parts.push(area);
+          if (city) parts.push(city);
+          streetName = parts.join(', ');
+          if (streetName) streetLabel = streetName;
+        }
+      } catch (err) {
+        console.error('Error geocoding inverso', err);
+      }
+    } else {
+      streetName = labelOverride;
+    }
+
+    const safe = (value: string) =>
+      value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    const label = safe(streetLabel);
+    const reportLabel = streetLabel.replace(/'/g, "\\'");
+
+    const popupOptions = {
+      offset: [0, -20],
+      closeButton: true,
+    };
+
+    markerRef.current
+      .bindPopup(
+        `<div class="popup-content" style="min-width:220px;">
+          <div style="font-weight:600; color:#111827;">${label}</div>
+          <div style="margin-top:4px; font-size:12px; color:#4b5563; font-weight:400;">📍 ${coords.lat.toFixed(
+            6
+          )}, ${coords.lon.toFixed(6)}</div>
+          <div style="margin-top:10px; display:flex; justify-content:center;">
+            <button class="report-btn" onclick="generarInforme(${coords.lat}, ${coords.lon}, '${reportLabel}', ${isPlace ? 'true' : 'false'})">Generar Informe</button>
+          </div>
+        </div>`,
+        popupOptions
+      )
+      .openPopup();
+
+    window.generarInforme = async (lat: number, lon: number, street: string, placeScope = false) => {
+      setMostrarInforme(true);
+      setLoadingInforme(true);
+      setInforme(null);
+
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      try {
+        const res = await fetch('/api/ia', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lat, lon, street, scope: placeScope ? 'place' : 'point' }),
+          signal: controller.signal,
+        });
+
+        const data = await res.json();
+        setInforme(data.informe || 'No se pudo generar el informe');
+      } catch (err) {
+        if ((err as any).name === 'AbortError') {
+          console.log('Llamada cancelada');
+        } else {
+          console.error(err);
+          setInforme('Error al generar el informe');
+        }
+      } finally {
+        setLoadingInforme(false);
+        abortControllerRef.current = null;
+      }
+    };
+  };
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [informe, setInforme] = useState<string | null>(null);
   const [loadingInforme, setLoadingInforme] = useState(false);
   const [mostrarInforme, setMostrarInforme] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  const renderInforme = (text: string) => {
+    const sectionTitles = [
+      'Descripción de la zona',
+      'Infraestructura cercana',
+      'Riesgos relevantes',
+      'Posibles usos urbanos',
+      'Recomendación final',
+      'Fuentes y limitaciones',
+    ];
 
+    return text.split('\n').map((line, index) => {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        return <div key={`spacer-${index}`} className="h-2" />;
+      }
+
+      const locationMatch = trimmed.match(/^(Lugar|Dirección):\s*(.+)$/i);
+      if (locationMatch) {
+        const label = locationMatch[1];
+        const value = locationMatch[2];
+        return (
+          <p key={`line-${index}`} className="text-sm text-gray-800">
+            <span className="font-semibold text-gray-900">{label}:</span>{' '}
+            <span className="font-semibold text-gray-900">{value}</span>
+          </p>
+        );
+      }
+
+      const match = sectionTitles.find(
+        (title) => trimmed.toLowerCase().startsWith(`${title.toLowerCase()}:`)
+      );
+      if (match) {
+        const rest = trimmed.slice(match.length + 1).trim();
+        return (
+          <p key={`line-${index}`} className="text-sm text-gray-800">
+            <span className="font-semibold text-gray-900">{match}:</span>
+            {rest ? ` ${rest}` : ''}
+          </p>
+        );
+      }
+
+      return (
+        <p key={`line-${index}`} className="text-sm text-gray-700">
+          {line}
+        </p>
+      );
+    });
+  };
+
+  const parseInforme = (text: string) => {
+    const sectionTitles = [
+      'Descripción de la zona',
+      'Infraestructura cercana',
+      'Riesgos relevantes',
+      'Posibles usos urbanos',
+      'Recomendación final',
+      'Fuentes y limitaciones',
+    ];
+    const result: {
+      locationLabel?: string;
+      locationValue?: string;
+      coords?: string;
+      sections: { title: string; body: string }[];
+    } = { sections: [] };
+
+    let current: { title: string; lines: string[] } | null = null;
+    const lines = text.split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      const locationMatch = trimmed.match(/^(Lugar|Dirección):\s*(.+)$/i);
+      if (locationMatch) {
+        result.locationLabel = locationMatch[1];
+        result.locationValue = locationMatch[2];
+        continue;
+      }
+      if (trimmed.toLowerCase().startsWith('coordenadas:')) {
+        result.coords = trimmed.replace(/^coordenadas:\s*/i, '');
+        continue;
+      }
+
+      const title = sectionTitles.find((t) =>
+        trimmed.toLowerCase().startsWith(`${t.toLowerCase()}:`)
+      );
+      if (title) {
+        if (current) {
+          result.sections.push({
+            title: current.title,
+            body: current.lines.join(' ').trim(),
+          });
+        }
+        const rest = trimmed.slice(title.length + 1).trim();
+        current = { title, lines: rest ? [rest] : [] };
+        continue;
+      }
+
+      if (!current) {
+        current = { title: 'Resumen', lines: [trimmed] };
+      } else {
+        current.lines.push(trimmed);
+      }
+    }
+    if (current) {
+      result.sections.push({
+        title: current.title,
+        body: current.lines.join(' ').trim(),
+      });
+    }
+
+    return result;
+  };
+
+  const handleExportPdf = async () => {
+    if (!informe) return;
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'pt',
+      format: 'a4',
+    });
+
+    const marginX = 48;
+    let cursorY = 60;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const contentWidth = pageWidth - marginX * 2;
+
+    const drawHeader = () => {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.setTextColor(31, 41, 55);
+      doc.text('Informe IA', marginX, 40);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(107, 114, 128);
+      const dateLabel = new Date().toLocaleString('es-ES', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+      doc.text(`Generado: ${dateLabel}`, marginX, 62);
+      doc.setDrawColor(229, 231, 235);
+      doc.line(marginX, 88, pageWidth - marginX, 88);
+      cursorY = 110;
+    };
+
+    const ensureSpace = (height: number) => {
+      if (cursorY + height < pageHeight - 48) return;
+      doc.addPage();
+      drawHeader();
+    };
+
+    drawHeader();
+
+    const parsed = parseInforme(informe);
+    const locationLine = parsed.locationValue
+      ? `${parsed.locationLabel ?? 'Lugar'}: ${parsed.locationValue}`
+      : undefined;
+    const coordsLine = parsed.coords ? `Coordenadas: ${parsed.coords}` : undefined;
+
+    if (locationLine) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(17, 24, 39);
+      const wrapped = doc.splitTextToSize(locationLine, contentWidth);
+      ensureSpace(wrapped.length * 16);
+      doc.text(wrapped, marginX, cursorY);
+      cursorY += wrapped.length * 16 + 2;
+    }
+
+    if (coordsLine) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(107, 114, 128);
+      const wrapped = doc.splitTextToSize(coordsLine, contentWidth);
+      ensureSpace(wrapped.length * 14);
+      doc.text(wrapped, marginX, cursorY);
+      cursorY += wrapped.length * 14 + 10;
+    }
+
+    for (const section of parsed.sections) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(31, 41, 55);
+      ensureSpace(18);
+      doc.text(section.title, marginX, cursorY);
+      cursorY += 16;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10.5);
+      doc.setTextColor(55, 65, 81);
+      const bodyText = section.body || 'Sin información disponible.';
+      const wrapped = doc.splitTextToSize(bodyText, contentWidth);
+      ensureSpace(wrapped.length * 14 + 8);
+      doc.text(wrapped, marginX, cursorY);
+      cursorY += wrapped.length * 14 + 12;
+    }
+
+    doc.save('informe-ia.pdf');
+  };
+
+
+  const setMarkerAt = async (
+    coords: { lat: number; lon: number },
+    label?: string | null,
+    zoom?: number,
+    isPlace = false
+  ) => {
+    const L = require('leaflet');
+    if (!markerRef.current) {
+      markerRef.current = L.marker([coords.lat, coords.lon]).addTo(mapRef.current);
+    } else {
+      markerRef.current.setLatLng([coords.lat, coords.lon]);
+    }
+
+    if (zoom && mapRef.current) {
+      mapRef.current.flyTo([coords.lat, coords.lon], zoom, {
+        animate: true,
+        duration: 0.8,
+      });
+    }
+
+    await bindMarkerPopup(coords, label ?? null, isPlace);
+  };
+
+  const setupLabelLayers = async (L: any, map: any) => {
+    if (labelsInitializedRef.current) return;
+    labelsInitializedRef.current = true;
+
+    try {
+      const [citiesRes, countriesRes] = await Promise.all([
+        fetch('/data/labels/cities_110m.json'),
+        fetch('/data/labels/countries_110m.json'),
+      ]);
+      if (!citiesRes.ok || !countriesRes.ok) return;
+      const cities = await citiesRes.json();
+      const countries = await countriesRes.json();
+
+      const createLabelIcon = (name: string, size: number) =>
+        L.divIcon({
+          className: '',
+          html: `<div style="font-size:${size}px; font-weight:600; color:#111827; text-shadow:0 1px 2px rgba(255,255,255,0.9); white-space:nowrap;">${name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`,
+        });
+
+      cityLabelsRef.current = L.layerGroup(
+        cities.map((city: any) => {
+          const marker = L.marker([city.lat, city.lon], {
+            icon: createLabelIcon(city.name, 12),
+            interactive: true,
+          });
+          marker.on('click', () => {
+            setMarkerAt({ lat: city.lat, lon: city.lon }, city.name, 12, true);
+          });
+          return marker;
+        })
+      );
+
+      countryLabelsRef.current = L.layerGroup(
+        countries.map((country: any) => {
+          const marker = L.marker([country.lat, country.lon], {
+            icon: createLabelIcon(country.name, 14),
+            interactive: true,
+          });
+          marker.on('click', () => {
+            setMarkerAt({ lat: country.lat, lon: country.lon }, country.name, 5, true);
+          });
+          return marker;
+        })
+      );
+
+      const updateLabelVisibility = () => {
+        const zoom = map.getZoom();
+        if (zoom <= 5) {
+          if (map.hasLayer(cityLabelsRef.current)) map.removeLayer(cityLabelsRef.current);
+          if (!map.hasLayer(countryLabelsRef.current)) map.addLayer(countryLabelsRef.current);
+        } else {
+          if (map.hasLayer(countryLabelsRef.current)) map.removeLayer(countryLabelsRef.current);
+          if (!map.hasLayer(cityLabelsRef.current)) map.addLayer(cityLabelsRef.current);
+        }
+      };
+
+      updateLabelVisibility();
+      map.on('zoomend', updateLabelVisibility);
+    } catch (err) {
+      console.error('Error loading label layers', err);
+    }
+  };
 
   // Inicializar mapa
   useEffect(() => {
@@ -48,19 +519,32 @@ export default function MapView({ coordenadas, toolData, onMapClick }: MapViewPr
           zoom: 12,          // tu zoom inicial
           minZoom: 2,        // zoom mínimo (ver todo el mundo)
           maxZoom: 18,       // zoom máximo cercano
-          worldCopyJump: false // permite que el mapa se repita horizontalmente
+          worldCopyJump: false, // permite que el mapa se repita horizontalmente
+          zoomControl: false,
         });
         mapRef.current = map;
 
-        // Tiles de OpenStreetMap
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '© OpenStreetMap contributors',
-        }).addTo(map);
+        const { baseLayers, overlayLayers } = buildLayers(L);
+        layersRef.current = { baseLayers, overlayLayers };
+        const initialBaseId = initialLayerStateRef.current?.baseId ?? 'osm';
+        baseLayers[initialBaseId]?.addTo(map);
+        activeBaseLayerRef.current = initialBaseId;
+
+        const initialOverlays = initialLayerStateRef.current?.overlays ?? [];
+        initialOverlays.forEach((id) => {
+          const layer = overlayLayers[id];
+          if (layer) {
+            layer.addTo(map);
+            activeOverlayLayerIdsRef.current.add(id);
+          }
+        });
 
         map.setMaxBounds([
           [-85, -Infinity], // limitar solo vertical
           [85, Infinity],
         ]);
+
+        setupLabelLayers(L, map);
 
 
         // Click en mapa
@@ -79,82 +563,7 @@ export default function MapView({ coordenadas, toolData, onMapClick }: MapViewPr
     markerRef.current.setLatLng([coords.lat, coords.lon]);
   }
 
-// Llamada a Nominatim para geocoding inverso
-let streetName = '';
-try {
-  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.lat}&lon=${coords.lon}&zoom=18&addressdetails=1`;
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'MiMapaApp/1.0',
-    },
-  });
-  const data = await res.json();
-
-  // Construir dirección hasta provincia
-  const address = data.address;
-  if (address) {
-    const parts = [];
-    if (address.road) parts.push(address.road);
-    if (address.house_number) parts.push(address.house_number);
-    if (address.city) parts.push(address.city);
-    streetName = parts.join(', ');
-  }
-} catch (err) {
-  console.error('Error geocoding inverso', err);
-}
-
-
-// Mostrar popup en el marcador
-const popupOptions = {
-  offset: [0, -20],
-  closeButton: true,
-};
-
-markerRef.current
-  .bindPopup(
-    `<div class="popup-content">
-      <strong>${streetName}<strong/><br/>
-      📍 ${coords.lat.toFixed(6)}, ${coords.lon.toFixed(6)}<br/><br/>
-      <button class="report-btn" onclick="generarInforme(${coords.lat}, ${coords.lon}, '${streetName}')">Generar Informe</button>
-    </div>`,
-    popupOptions
-  )
-  .openPopup();
-
- window.generarInforme = async (lat: number, lon: number, street: string) => {
-  setMostrarInforme(true);
-  setLoadingInforme(true);
-  setInforme(null);
-
-  // Cancelar cualquier llamada previa
-  if (abortControllerRef.current) {
-    abortControllerRef.current.abort();
-  }
-  const controller = new AbortController();
-  abortControllerRef.current = controller;
-
-  try {
-    const res = await fetch('/api/ia', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lat, lon, street }),
-      signal: controller.signal,
-    });
-
-    const data = await res.json();
-    setInforme(data.informe || 'No se pudo generar el informe');
-  } catch (err) {
-    if ((err as any).name === 'AbortError') {
-      console.log('Llamada cancelada');
-    } else {
-      console.error(err);
-      setInforme('Error al generar el informe');
-    }
-  } finally {
-    setLoadingInforme(false);
-    abortControllerRef.current = null;
-  }
-};
+  await setMarkerAt(coords, null, undefined, false);
 
 
 
@@ -185,6 +594,302 @@ markerRef.current
   }, []);
 
   useEffect(() => {
+    if (!mapRef.current || !layersRef.current || !layerState) return;
+    const { baseLayers, overlayLayers } = layersRef.current;
+
+    if (activeBaseLayerRef.current !== layerState.baseId) {
+      if (activeBaseLayerRef.current) {
+        const currentLayer = baseLayers[activeBaseLayerRef.current];
+        if (currentLayer) mapRef.current.removeLayer(currentLayer);
+      }
+      const nextLayer = baseLayers[layerState.baseId];
+      if (nextLayer) nextLayer.addTo(mapRef.current);
+      activeBaseLayerRef.current = layerState.baseId;
+    }
+
+    const nextOverlays = new Set(layerState.overlays);
+    activeOverlayLayerIdsRef.current.forEach((id) => {
+      if (!nextOverlays.has(id)) {
+        const layer = overlayLayers[id];
+        if (layer) mapRef.current.removeLayer(layer);
+      }
+    });
+
+    layerState.overlays.forEach((id) => {
+      if (!activeOverlayLayerIdsRef.current.has(id)) {
+        const layer = overlayLayers[id];
+        if (layer) layer.addTo(mapRef.current);
+      }
+    });
+
+    activeOverlayLayerIdsRef.current = nextOverlays;
+  }, [layerState]);
+
+  useEffect(() => {
+    if (!mapRef.current || !layerState) return;
+    const map = mapRef.current;
+
+    if (layerState.baseId !== 'ica') {
+      if (aqiCanvasRef.current) {
+        aqiCanvasRef.current.remove();
+        aqiCanvasRef.current = null;
+      }
+      if (aqiLabelsLayerRef.current) {
+        map.removeLayer(aqiLabelsLayerRef.current);
+        aqiLabelsLayerRef.current = null;
+      }
+      if (aqiMoveHandlerRef.current) {
+        map.off('moveend', aqiMoveHandlerRef.current);
+        aqiMoveHandlerRef.current = null;
+      }
+      if (aqiAbortRef.current) {
+        aqiAbortRef.current.abort();
+        aqiAbortRef.current = null;
+      }
+      return;
+    }
+
+    if (!aqicnToken) return;
+
+    const L = require('leaflet');
+
+    if (!aqiLabelsLayerRef.current) {
+      aqiLabelsLayerRef.current = L.tileLayer(
+        'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png',
+        {
+          attribution: '© OpenStreetMap contributors, © CARTO',
+          opacity: 0.9,
+          maxZoom: 19,
+          zIndex: 450,
+        }
+      ).addTo(map);
+    }
+
+    const getAqiColor = (aqi: number) => {
+      if (aqi <= 25) return '#2b83ba'; // buena
+      if (aqi <= 50) return '#4daf4a'; // razonablemente buena
+      if (aqi <= 75) return '#fdae61'; // regular
+      if (aqi <= 100) return '#f46d43'; // desfavorable
+      if (aqi <= 150) return '#8b0000'; // muy desfavorable
+      return '#6a0dad'; // extremadamente desfavorable
+    };
+
+    const getIcaColor = (indice: number) => {
+      if (indice <= 1.5) return '#2b83ba'; // buena
+      if (indice <= 2.5) return '#4daf4a'; // razonablemente buena
+      if (indice <= 3.5) return '#fdae61'; // regular
+      if (indice <= 4.5) return '#f46d43'; // desfavorable
+      if (indice <= 5.5) return '#8b0000'; // muy desfavorable
+      return '#6a0dad'; // extremadamente desfavorable
+    };
+
+    const isSpain = (lat: number, lon: number) =>
+      lat >= 27 && lat <= 44.8 && lon >= -18.5 && lon <= 5.5;
+
+    const ensureCanvas = () => {
+      if (aqiCanvasRef.current) return aqiCanvasRef.current;
+      const canvas = L.DomUtil.create('canvas', 'aqi-canvas-layer') as HTMLCanvasElement;
+      const pane = map.getPanes().overlayPane;
+      canvas.style.position = 'absolute';
+      canvas.style.pointerEvents = 'none';
+      pane.appendChild(canvas);
+      aqiCanvasRef.current = canvas;
+      return canvas;
+    };
+
+    const drawHeatSurface = () => {
+      const canvas = ensureCanvas();
+      const size = map.getSize();
+      if (canvas.width !== size.x || canvas.height !== size.y) {
+        canvas.width = size.x;
+        canvas.height = size.y;
+      }
+      const topLeft = map.containerPointToLayerPoint([0, 0]);
+      L.DomUtil.setPosition(canvas, topLeft);
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = 0.6;
+
+      const stations = aqiStationsRef.current;
+      const icaStations = icaStationsRef.current;
+      if (!stations.length && !icaStations.length) return;
+
+      const offscreen = document.createElement('canvas');
+      const gridX = 140;
+      const gridY = 100;
+      offscreen.width = gridX;
+      offscreen.height = gridY;
+      const offCtx = offscreen.getContext('2d');
+      if (!offCtx) return;
+      offCtx.clearRect(0, 0, offscreen.width, offscreen.height);
+      offCtx.globalAlpha = 0.7;
+
+      const maxStations = 160;
+      const sampleStations = stations.slice(0, maxStations);
+      const sampleIcaStations = icaStations.slice(0, maxStations);
+
+      for (let y = 0; y < gridY; y += 1) {
+        for (let x = 0; x < gridX; x += 1) {
+          const point = L.point(
+            (x + 0.5) * (canvas.width / gridX),
+            (y + 0.5) * (canvas.height / gridY)
+          );
+          const latlng = map.containerPointToLatLng(point);
+
+          const useSpain = isSpain(latlng.lat, latlng.lng) && sampleIcaStations.length > 0;
+          let weightedSum = 0;
+          let weightTotal = 0;
+          if (useSpain) {
+            for (const station of sampleIcaStations) {
+              const distance = Math.max(1200, map.distance(latlng, L.latLng(station.lat, station.lon)));
+              const weight = 1 / (distance * distance);
+              weightedSum += station.indice * weight;
+              weightTotal += weight;
+            }
+            if (!weightTotal) continue;
+            const interpolated = weightedSum / weightTotal;
+            offCtx.fillStyle = getIcaColor(interpolated);
+          } else {
+            for (const station of sampleStations) {
+              const distance = Math.max(1200, map.distance(latlng, L.latLng(station.lat, station.lon)));
+              const weight = 1 / (distance * distance);
+              weightedSum += station.aqi * weight;
+              weightTotal += weight;
+            }
+            if (!weightTotal) continue;
+            const interpolated = weightedSum / weightTotal;
+            offCtx.fillStyle = getAqiColor(interpolated);
+          }
+          offCtx.fillRect(x, y, 1, 1);
+        }
+      }
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
+    };
+
+    const scheduleDraw = () => {
+      if (aqiFrameRef.current) return;
+      aqiFrameRef.current = window.requestAnimationFrame(() => {
+        aqiFrameRef.current = null;
+        drawHeatSurface();
+      });
+    };
+
+    const fetchIcaSpain = async () => {
+      const now = Date.now();
+      if (icaUpdatedAtRef.current && now - icaUpdatedAtRef.current < 10 * 60 * 1000) {
+        return;
+      }
+      try {
+        const res = await fetch('/api/ica');
+        if (!res.ok) return;
+        const text = await res.text();
+        const lines = text.split('\n').filter(Boolean);
+        if (lines.length <= 1) return;
+        const data = lines.slice(1).map((line) => line.split(','));
+        icaStationsRef.current = data
+          .map((row) => {
+            const lat = Number(row[3]);
+            const lon = Number(row[4]);
+            const indice = Number(row[7]);
+            if (
+              !Number.isFinite(lat) ||
+              !Number.isFinite(lon) ||
+              !Number.isFinite(indice) ||
+              indice < 1 ||
+              indice > 6
+            ) {
+              return null;
+            }
+            return { lat, lon, indice };
+          })
+          .filter(Boolean) as { lat: number; lon: number; indice: number }[];
+        icaUpdatedAtRef.current = now;
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    const fetchHeatData = async () => {
+      if (aqiAbortRef.current) aqiAbortRef.current.abort();
+      const controller = new AbortController();
+      aqiAbortRef.current = controller;
+
+      const bounds = map.getBounds();
+      const paddedBounds = bounds.pad(0.6);
+      const shouldFetch =
+        !aqiFetchBoundsRef.current ||
+        !aqiFetchBoundsRef.current.contains(bounds);
+      if (!shouldFetch) {
+        scheduleDraw();
+        return;
+      }
+
+      const paddedSw = paddedBounds.getSouthWest();
+      const paddedNe = paddedBounds.getNorthEast();
+      const url = `https://api.waqi.info/map/bounds/?latlng=${paddedSw.lat},${paddedSw.lng},${paddedNe.lat},${paddedNe.lng}&token=${aqicnToken}`;
+
+      try {
+        await fetchIcaSpain();
+        const res = await fetch(url, { signal: controller.signal });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.status !== 'ok' || !Array.isArray(data.data)) return;
+
+        aqiStationsRef.current = data.data
+          .filter((item: any) => item && item.aqi !== '-' && item.lat && item.lon)
+          .map((item: any) => {
+            const value = Number(item.aqi);
+            if (!Number.isFinite(value)) return null;
+            return { lat: item.lat, lon: item.lon, aqi: value };
+          })
+          .filter(Boolean);
+
+        aqiFetchBoundsRef.current = paddedBounds;
+        scheduleDraw();
+      } catch (err) {
+        if ((err as any).name !== 'AbortError') {
+          console.error(err);
+        }
+      }
+    };
+
+    aqiMoveHandlerRef.current = fetchHeatData;
+    aqiDrawHandlerRef.current = scheduleDraw;
+    map.on('moveend', fetchHeatData);
+    map.on('zoomend', fetchHeatData);
+    fetchHeatData();
+
+    return () => {
+      if (aqiCanvasRef.current) {
+        aqiCanvasRef.current.remove();
+        aqiCanvasRef.current = null;
+      }
+      if (aqiLabelsLayerRef.current) {
+        map.removeLayer(aqiLabelsLayerRef.current);
+        aqiLabelsLayerRef.current = null;
+      }
+      if (aqiMoveHandlerRef.current) {
+        map.off('moveend', aqiMoveHandlerRef.current);
+        aqiMoveHandlerRef.current = null;
+      }
+      map.off('zoomend', fetchHeatData);
+      if (aqiAbortRef.current) {
+        aqiAbortRef.current.abort();
+        aqiAbortRef.current = null;
+      }
+      if (aqiFrameRef.current) {
+        window.cancelAnimationFrame(aqiFrameRef.current);
+        aqiFrameRef.current = null;
+      }
+    };
+  }, [layerState, aqicnToken]);
+
+  useEffect(() => {
   const resize = () => mapRef.current?.invalidateSize();
   window.addEventListener('resize', resize);
   return () => window.removeEventListener('resize', resize);
@@ -208,32 +913,74 @@ markerRef.current
       }
 
       setCoords({ lat: coordenadas.lat, lon: coordenadas.lon });
+      const label = selectedPlace?.label ?? null;
+      bindMarkerPopup({ lat: coordenadas.lat, lon: coordenadas.lon }, label, isPlaceSelection(selectedPlace));
     }
-  }, [coordenadas]);
-
-   // Renderizar capa del tool
-  useEffect(() => {
-    if (!toolData || !mapRef.current) return;
-    const L = require('leaflet');
-
-    switch (toolData.tool) {
-      case 'capasUrbanismo':
-        // dibujar polígonos de urbanismo
-        break;
-      case 'riesgoInundacion':
-        // dibujar capa de riesgo de inundación
-        break;
-      case 'contaminacion':
-        // dibujar puntos de contaminación
-        break;
-    }
-  }, [toolData]);
+  }, [coordenadas, selectedPlace]);
 
 return (
   <div className="relative h-full w-full">
 
     {/* MAPA */}
     <div id="map" className="h-full w-full" />
+
+    {layerState?.baseId === 'ica' && (
+      <>
+        <div className="absolute left-3 top-3 z-[1100] w-[170px] rounded-2xl border border-black/10 bg-black/55 px-3 py-3 text-white shadow-xl backdrop-blur sm:left-4 sm:top-4 sm:w-[190px] md:hidden">
+          <div className="text-[11px] font-semibold tracking-wide">ICA (ES)</div>
+          <div className="mt-3 space-y-2 text-[11px]">
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 h-6 w-1.5 rounded-full" style={{ backgroundColor: '#6a0dad' }} />
+              <span>Extremadamente desfavorable</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 h-6 w-1.5 rounded-full" style={{ backgroundColor: '#8b0000' }} />
+              <span>Muy desfavorable</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 h-6 w-1.5 rounded-full" style={{ backgroundColor: '#f46d43' }} />
+              <span>Desfavorable</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 h-6 w-1.5 rounded-full" style={{ backgroundColor: '#fdae61' }} />
+              <span>Regular</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 h-6 w-1.5 rounded-full" style={{ backgroundColor: '#4daf4a' }} />
+              <span>Razonablemente buena</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 h-6 w-1.5 rounded-full" style={{ backgroundColor: '#2b83ba' }} />
+              <span>Buena</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="absolute bottom-5 left-1/2 z-[1100] hidden w-[640px] -translate-x-1/2 rounded-2xl border border-black/10 bg-black/55 px-4 py-3 text-white shadow-lg backdrop-blur md:block">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-white">ICA (ES)</div>
+          <div className="mt-2">
+            <div className="h-2 w-full overflow-hidden rounded-full">
+              <div className="grid h-full w-full grid-cols-6">
+                <span style={{ backgroundColor: '#2b83ba' }} />
+                <span style={{ backgroundColor: '#4daf4a' }} />
+                <span style={{ backgroundColor: '#fdae61' }} />
+                <span style={{ backgroundColor: '#f46d43' }} />
+                <span style={{ backgroundColor: '#8b0000' }} />
+                <span style={{ backgroundColor: '#6a0dad' }} />
+              </div>
+            </div>
+            <div className="mt-2 grid grid-cols-6 text-[10px] text-white/80">
+              <span>Buena</span>
+              <span>Razonable</span>
+              <span>Regular</span>
+              <span>Desfavorable</span>
+              <span>Muy desf.</span>
+              <span>Extrema</span>
+            </div>
+          </div>
+        </div>
+      </>
+    )}
 
     {/* PANEL DE INFORME FLOTANTE */}
 <div
@@ -267,7 +1014,7 @@ return (
   `}
 >
   {/* HEADER */}
-  <div className="flex justify-between items-center mb-3 flex-shrink-0">
+  <div className="flex justify-between items-center flex-shrink-0">
     <h2 className="text-lg font-semibold">
       Informe IA
     </h2>
@@ -286,6 +1033,7 @@ return (
       ✕
     </button>
   </div>
+  <div className="-mx-4 mb-3 mt-2 h-px bg-gray-200" />
 
   {/* CONTENIDO SCROLL */}
   <div className="flex-1 overflow-y-auto">
@@ -302,15 +1050,15 @@ return (
     )}
 
     {!loadingInforme && informe && (
-      <div className="text-sm whitespace-pre-line">
-        {informe}
+      <div>
+        {renderInforme(informe)}
       </div>
     )}
   </div>
 
   {/* FOOTER - BOTÓN EXPORTAR PDF FIJO ABAJO */}
   {!loadingInforme && informe && (
-    <div className="mt-4 flex-shrink-0 border-t border-gray-300 pt-4">
+    <div className="-mx-4 mt-4 flex-shrink-0 border-t border-gray-300 pt-4 px-4">
       <button
         className="
           w-full
@@ -323,7 +1071,7 @@ return (
           hover:bg-blue-700
           transition
         "
-        onClick={() => console.log('Exportar PDF')}
+        onClick={handleExportPdf}
       >
         Exportar PDF
       </button>
