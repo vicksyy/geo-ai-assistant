@@ -164,9 +164,7 @@ export default function ComparePanel({
                         type="button"
                         className="w-full px-3 py-2 text-left hover:bg-black/5"
                         onClick={() => {
-                          const label = item.name || item.display_name || '';
-                          const cityName = label.split(',')[0].trim();
-                          setCityA(cityName || item.display_name);
+                          setCityA(item.display_name || item.name || '');
                           setShowA(false);
                         }}
                       >
@@ -204,9 +202,7 @@ export default function ComparePanel({
                         type="button"
                         className="w-full px-3 py-2 text-left hover:bg-black/5"
                         onClick={() => {
-                          const label = item.name || item.display_name || '';
-                          const cityName = label.split(',')[0].trim();
-                          setCityB(cityName || item.display_name);
+                          setCityB(item.display_name || item.name || '');
                           setShowB(false);
                         }}
                       >

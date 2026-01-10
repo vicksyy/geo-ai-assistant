@@ -51,6 +51,27 @@ export default function SearchInput({ onResult }: SearchInputProps) {
         return;
       }
 
+      if (query.trim().length >= 3) {
+        const looseRes = await fetch(
+          `/api/tools/sugerencias?query=${encodeURIComponent(query)}`
+        );
+        if (looseRes.ok) {
+          const loose = await looseRes.json();
+          const first = loose?.results?.[0];
+          if (first) {
+            onResult({
+              lat: first.lat,
+              lon: first.lon,
+              displayName: first.display_name ?? null,
+              placeClass: first.class ?? null,
+              placeType: first.type ?? null,
+            });
+            setShowSuggestions(false);
+            return;
+          }
+        }
+      }
+
       const fallbackRes = await fetch(
         `/api/tools/sugerencias?query=${encodeURIComponent(query)}`
       );

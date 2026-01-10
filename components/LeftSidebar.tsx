@@ -12,6 +12,8 @@ interface LeftSidebarProps {
   layersOpen: boolean;
   onLayersToggle: () => void;
   onCompareClick?: () => void;
+  onHistoryClick?: () => void;
+  onSaveClick?: () => void;
   baseLayerId: BaseLayerId;
   overlayLayerIds: OverlayLayerId[];
   onBaseLayerChange: (id: BaseLayerId) => void;
@@ -23,6 +25,8 @@ export default function LeftSidebar({
   layersOpen,
   onLayersToggle,
   onCompareClick,
+  onHistoryClick,
+  onSaveClick,
   baseLayerId,
   overlayLayerIds,
   onBaseLayerChange,
@@ -61,6 +65,32 @@ export default function LeftSidebar({
           onMouseLeave={() => setTooltip(null)}
         >
           🏙️
+        </button>
+
+        <button
+          type="button"
+          className="w-10 h-10 flex items-center justify-center rounded-lg text-black hover:bg-black/10 transition relative"
+          onClick={() => onHistoryClick?.()}
+          onMouseEnter={(e) => {
+            const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+            setTooltip({ name: 'Histórico y notas', top: rect.top + rect.height / 2, left: rect.right });
+          }}
+          onMouseLeave={() => setTooltip(null)}
+        >
+          🗂️
+        </button>
+
+        <button
+          type="button"
+          className="w-10 h-10 flex items-center justify-center rounded-lg text-black hover:bg-black/10 transition relative"
+          onClick={() => onSaveClick?.()}
+          onMouseEnter={(e) => {
+            const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+            setTooltip({ name: 'Guardar ubicación', top: rect.top + rect.height / 2, left: rect.right });
+          }}
+          onMouseLeave={() => setTooltip(null)}
+        >
+          💾
         </button>
 
       </aside>
@@ -159,6 +189,22 @@ export default function LeftSidebar({
           onClick={() => onCompareClick?.()}
         >
           🏙️
+        </button>
+
+        <button
+          type="button"
+          className="w-10 h-10 flex items-center justify-center rounded-lg bg-[#211304] text-white shadow-lg hover:scale-110 transition"
+          onClick={() => onHistoryClick?.()}
+        >
+          🗂️
+        </button>
+
+        <button
+          type="button"
+          className="w-10 h-10 flex items-center justify-center rounded-lg bg-[#211304] text-white shadow-lg hover:scale-110 transition"
+          onClick={() => onSaveClick?.()}
+        >
+          💾
         </button>
       </div>
     </>

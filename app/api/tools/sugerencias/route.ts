@@ -43,6 +43,30 @@ export async function GET(req: Request) {
     ]);
     const data = [...cityData, ...generalData];
 
+    const maptilerKey = process.env.MAPTILER_API_KEY;
+    let maptilerData: any[] = [];
+    if (maptilerKey) {
+      const maptilerUrl = `https://api.maptiler.com/geocoding/${encodeURIComponent(
+        query
+      )}.json?key=${encodeURIComponent(maptilerKey)}&language=es`;
+      const maptilerRes = await fetchWithTimeout(maptilerUrl, 900);
+      maptilerData = (maptilerRes?.features ?? []).map((feature: any) => {
+        const placeType = feature.place_type ?? [];
+        const isCityLike = placeType.includes('place') || placeType.includes('locality');
+        return {
+          display_name: feature.place_name ?? feature.text ?? '',
+          name: feature.text ?? '',
+          lat: feature.center?.[1],
+          lon: feature.center?.[0],
+          boundingbox: feature.bbox ?? null,
+          place_rank: null,
+          type: isCityLike ? 'city' : placeType[0] ?? null,
+          class: 'place',
+          importance: 1,
+        };
+      });
+    }
+
     const normalize = (value: string) =>
       value
         .toLowerCase()
@@ -62,7 +86,10 @@ export async function GET(req: Request) {
       'state',
       'region',
     ]);
-    const cityTypes = new Set(['city', 'town', 'village', 'municipality']);
+    const cityTypes = new Set(['city', 'town', 'village', 'municipality', 'locality']);
+    const isStreetQuery = /(calle|avenida|av\.|av |carrer|paseo|plaza|ramblas|rambla|pasaje|trav|travesia|camino)/i.test(
+      query
+    );
     const popularCities = [
       { name: 'Madrid', region: 'Comunidad de Madrid', country: 'Espana', lat: 40.4168, lon: -3.7038 },
       { name: 'Barcelona', region: 'Cataluna', country: 'Espana', lat: 41.3874, lon: 2.1686 },
@@ -112,7 +139,7 @@ export async function GET(req: Request) {
       })
       .filter((item) => item.score > 0);
 
-    const results = (data ?? [])
+    const results = [...(data ?? []), ...maptilerData]
       .map((item: any) => {
         const name = item.name ?? item.address?.road ?? '';
         const label = item.display_name ?? '';
@@ -123,13 +150,14 @@ export async function GET(req: Request) {
         const primaryToken = normalizedLabel.split(' ')[0] ?? '';
 
         let score = importance;
-        if (item.class === 'place' && placeBoostTypes.has(item.type)) score += 0.8;
-        if (item.class === 'place' && cityTypes.has(item.type)) score += 0.4;
+        if (item.class === 'place' && placeBoostTypes.has(item.type)) score += 0.6;
+        if (item.class === 'place' && cityTypes.has(item.type)) score += 0.3;
         if (normalizedName.startsWith(normalizedQuery)) score += 0.4;
         if (normalizedLabel.startsWith(normalizedQuery)) score += 0.2;
         if (primaryToken.startsWith(normalizedQuery)) score += 0.3;
         if (queryHasLatin && !labelHasLatin) score -= 0.6;
         if (item.class === 'aeroway') score -= 0.6;
+        if (isStreetQuery && item.class === 'place') score -= 0.4;
 
         return {
           display_name: label,
@@ -153,8 +181,6 @@ export async function GET(req: Request) {
     let filtered = merged;
     if (cityOnly) {
       filtered = cityResults.length ? cityResults : placeResults;
-    } else if (normalizedQuery.length >= 3 && placeResults.length) {
-      filtered = placeResults;
     }
 
     if (cityOnly && !filtered.length) {

@@ -71,6 +71,8 @@ export async function POST(req: Request) {
     const normalizeInput = (value: string) => value.split(',')[0].trim();
     const inputA = normalizeInput(cityA);
     const inputB = normalizeInput(cityB);
+    const labelA = cityA.trim();
+    const labelB = cityB.trim();
 
     const origin = new URL(req.url).origin;
     const geocode = async (city: string) => {
@@ -94,32 +96,16 @@ export async function POST(req: Request) {
     };
 
     const formatPlaceName = async (geo: any) => {
-      const reverseUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${geo.lat}&lon=${geo.lon}&zoom=10&addressdetails=1`;
-      const res = await fetch(reverseUrl, {
-        headers: {
-          'User-Agent': 'geo-ai-assistant/1.0',
-          'Accept-Language': 'es',
-        },
-      });
-      if (!res.ok) return geo.display_name ?? geo.name ?? `${geo.lat}, ${geo.lon}`;
-      const data = await res.json();
-      const address = data.address ?? {};
-      const cityName =
-        address.city ||
-        address.town ||
-        address.village ||
-        address.municipality ||
-        address.county ||
-        address.state_district;
-      const region =
-        address.state ||
-        address.region ||
-        address.province ||
-        address.state_district ||
-        address.county;
-      const country = address.country;
-      const parts = [cityName, region, country].filter(Boolean);
-      return parts.length ? parts.join(', ') : data.display_name ?? geo.display_name;
+      try {
+        const res = await fetch(
+          `${origin}/api/tools/buscarCoordenadas?lat=${geo.lat}&lon=${geo.lon}&zoom=10`
+        );
+        if (!res.ok) return geo.display_name ?? geo.name ?? `${geo.lat}, ${geo.lon}`;
+        const data = await res.json();
+        return data.display_name ?? geo.display_name ?? geo.name ?? `${geo.lat}, ${geo.lon}`;
+      } catch {
+        return geo.display_name ?? geo.name ?? `${geo.lat}, ${geo.lon}`;
+      }
     };
 
     let geoA: any;
@@ -135,26 +121,17 @@ export async function POST(req: Request) {
       );
     }
 
-    const cityTypes = new Set(['city', 'town', 'village', 'municipality']);
-    const isCity = (geo: any) => {
-      if (!geo) return false;
-      if (geo.class === 'place' && cityTypes.has(geo.type)) return true;
-      const rank = Number(geo.place_rank);
-      if (Number.isFinite(rank) && rank >= 12 && rank <= 18) return true;
-      return false;
-    };
-
-    if (!isCity(geoA) || !isCity(geoB)) {
+    if (!geoA || !geoB) {
       return NextResponse.json(
-        { error: 'Solo se permiten ciudades (no aeropuertos u otros lugares).' },
+        { error: 'No se pudieron resolver ambas ubicaciones.' },
         { status: 400 }
       );
     }
 
-    const getCityData = async (geo: any, label: string) => {
+    const getCityData = async (geo: any, label: string, displayLabel: string) => {
       const lat = Number(geo.lat);
       const lon = Number(geo.lon);
-      const name = await formatPlaceName(geo);
+      const name = displayLabel || label;
 
       const [urban, riesgo, facts, air] = await Promise.all([
         fetchJson(`${origin}/api/tools/capasUrbanismo?lat=${lat}&lon=${lon}`).catch(() => null),
@@ -195,7 +172,10 @@ export async function POST(req: Request) {
       };
     };
 
-    const [dataA, dataB] = await Promise.all([getCityData(geoA, inputA), getCityData(geoB, inputB)]);
+    const [dataA, dataB] = await Promise.all([
+      getCityData(geoA, inputA, labelA),
+      getCityData(geoB, inputB, labelB),
+    ]);
 
     const comparison: string[] = [];
     if (dataA.population && dataB.population) {

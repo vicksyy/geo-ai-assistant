@@ -14,6 +14,7 @@ declare global {
 interface MapViewProps {
   coordenadas?: { lat: number; lon: number } | null;
   onMapClick?: (coords: { lat:number, lon:number }) => void;
+  onLocationResolved?: (location: { lat: number; lon: number; label: string }) => void;
   layerState?: { baseId: BaseLayerId; overlays: OverlayLayerId[] };
   aqicnToken?: string;
   selectedPlace?: {
@@ -25,7 +26,7 @@ interface MapViewProps {
 }
 
 
-export default function MapView({ coordenadas, onMapClick, layerState, aqicnToken, selectedPlace }: MapViewProps) {
+export default function MapView({ coordenadas, onMapClick, onLocationResolved, layerState, aqicnToken, selectedPlace }: MapViewProps) {
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const layersRef = useRef<{
@@ -84,14 +85,14 @@ export default function MapView({ coordenadas, onMapClick, layerState, aqicnToke
     if (!mapRef.current || !markerRef.current) return;
 
     let streetName = '';
-    let streetLabel = labelOverride ?? 'Sin nombre';
+    let streetLabel = labelOverride ?? 'Ubicación seleccionada';
 
     if (!labelOverride) {
       try {
         const url = `/api/tools/buscarCoordenadas?lat=${coords.lat}&lon=${coords.lon}&zoom=18`;
         const res = await fetch(url);
         if (!res.ok) {
-          throw new Error('No se pudo resolver la direccion');
+          return;
         }
         const data = await res.json();
 
@@ -134,6 +135,8 @@ export default function MapView({ coordenadas, onMapClick, layerState, aqicnToke
           if (city) parts.push(city);
           streetName = parts.join(', ');
           if (streetName) streetLabel = streetName;
+        } else if (data?.display_name) {
+          streetLabel = data.display_name;
         }
       } catch (err) {
         console.error('Error geocoding inverso', err);
@@ -151,6 +154,9 @@ export default function MapView({ coordenadas, onMapClick, layerState, aqicnToke
         .replace(/'/g, '&#39;');
     const label = safe(streetLabel);
     const reportLabel = streetLabel.replace(/'/g, "\\'");
+    if (onLocationResolved) {
+      onLocationResolved({ lat: coords.lat, lon: coords.lon, label: streetLabel });
+    }
 
     const popupOptions = {
       offset: [0, -20],

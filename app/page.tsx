@@ -6,6 +6,7 @@ import LeftSidebar from '../components/LeftSidebar';
 import FloatingSearch from '../components/FloatingSearch';
 import { BaseLayerId, OverlayLayerId } from '../map/layers';
 import ComparePanel from '../components/ComparePanel';
+import HistoryPanel from '../components/HistoryPanel';
 
 
 
@@ -18,8 +19,15 @@ export default function HomePage() {
   } | null>(null);
   const [layersOpen, setLayersOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
   const [baseLayerId, setBaseLayerId] = useState<BaseLayerId>('osm');
   const [overlayLayerIds, setOverlayLayerIds] = useState<OverlayLayerId[]>([]);
+  const [lastLocation, setLastLocation] = useState<{
+    lat: number;
+    lon: number;
+    label: string;
+  } | null>(null);
   const aqicnToken = process.env.NEXT_PUBLIC_AQICN_TOKEN ?? '';
   const aqiAvailable = Boolean(aqicnToken);
 
@@ -31,6 +39,8 @@ export default function HomePage() {
         layersOpen={layersOpen}
         onLayersToggle={() => setLayersOpen((prev) => !prev)}
         onCompareClick={() => setCompareOpen((prev) => !prev)}
+        onHistoryClick={() => setHistoryOpen((prev) => !prev)}
+        onSaveClick={() => setSaveOpen((prev) => !prev)}
         baseLayerId={baseLayerId}
         overlayLayerIds={overlayLayerIds}
         onBaseLayerChange={(id) => setBaseLayerId(id)}
@@ -61,6 +71,26 @@ export default function HomePage() {
         </div>
 
         <ComparePanel open={compareOpen} onClose={() => setCompareOpen(false)} />
+        <HistoryPanel
+          open={historyOpen}
+          mode="history"
+          onClose={() => setHistoryOpen(false)}
+          location={lastLocation}
+          onSelectLocation={(loc) => {
+            setCoordenadas({ lat: loc.lat, lon: loc.lon });
+            setSelectedPlace({ label: loc.label });
+          }}
+        />
+        <HistoryPanel
+          open={saveOpen}
+          mode="save"
+          onClose={() => setSaveOpen(false)}
+          location={lastLocation}
+          onSelectLocation={(loc) => {
+            setCoordenadas({ lat: loc.lat, lon: loc.lon });
+            setSelectedPlace({ label: loc.label });
+          }}
+        />
 
        <MapView
          coordenadas={coordenadas}
@@ -68,6 +98,7 @@ export default function HomePage() {
            setCoordenadas(coords);
            setSelectedPlace(null);
          }}
+         onLocationResolved={(loc) => setLastLocation(loc)}
          layerState={{ baseId: baseLayerId, overlays: overlayLayerIds }}
          aqicnToken={aqicnToken}
          selectedPlace={selectedPlace}
