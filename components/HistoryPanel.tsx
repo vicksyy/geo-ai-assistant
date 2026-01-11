@@ -127,124 +127,131 @@ export default function HistoryPanel({
   if (!open) return null;
 
   return (
-    <div className="absolute left-3 right-3 top-16 z-[1200] max-h-[75vh] overflow-hidden rounded-2xl border border-black/10 bg-white/95 shadow-2xl backdrop-blur sm:left-4 sm:right-4 sm:top-20 md:left-4 md:right-auto md:top-24 md:h-[75vh] md:w-[420px]">
+    <div className="fixed inset-0 z-[1200] flex flex-col overflow-hidden bg-card/95 pb-20 text-foreground shadow-2xl backdrop-blur md:absolute md:left-4 md:right-auto md:top-24 md:inset-auto md:h-[75vh] md:w-[420px] md:rounded-2xl md:border md:border-border md:pb-0">
       <div className="flex items-center justify-between px-4 py-3">
         <div>
-          <h3 className="text-sm font-semibold text-gray-900">Histórico y notas</h3>
-          <p className="text-xs text-gray-500">{currentLabel}</p>
+          <h3 className="text-sm font-semibold text-foreground">
+            {mode === 'history' ? 'Histórico' : 'Notas y comentarios'}
+          </h3>
+          <p className="text-xs text-muted-foreground">{currentLabel}</p>
         </div>
         <button
           type="button"
-          className="text-gray-400 hover:text-gray-700"
+          className="text-muted-foreground hover:text-foreground"
           onClick={onClose}
           aria-label="Cerrar panel"
         >
           ✕
         </button>
       </div>
-      <div className="border-t border-black/10" />
 
-      {mode === 'history' && (
-        <>
-          <div className="space-y-3 px-4 py-4">
-            <Button className="w-full" onClick={handleHistory} disabled={historyLoading}>
-              {historyLoading ? 'Analizando...' : 'Generar análisis histórico (5 años)'}
-            </Button>
-            {historyError && <p className="text-xs text-red-500">{historyError}</p>}
-            {history && (
-              <div className="rounded-xl border border-black/5 bg-white px-3 py-3 text-xs text-gray-700 shadow-sm">
-                <div className="font-semibold text-gray-900">Resumen</div>
-                <p className="mt-1">{history.summary}</p>
-                <div className="mt-2 grid gap-2 text-[11px] text-gray-600">
-                  <div>Media temp: {history.metrics.avgTemp ?? 'N/D'} °C</div>
-                  <div>Precipitación total: {history.metrics.totalPrecip ?? 'N/D'} mm</div>
-                  <div>Días analizados: {history.metrics.days}</div>
-                </div>
-                {history.metrics.byYear?.length ? (
-                  <div className="mt-3 space-y-1 text-[11px] text-gray-600">
-                    {history.metrics.byYear.map((year) => (
-                      <div key={year.year}>
-                        {year.year}: {year.avgTemp ?? 'N/D'} °C · {year.totalPrecip ?? 'N/D'} mm
-                      </div>
-                    ))}
+      <div className="flex-1 overflow-y-auto">
+        <div className="border-t border-border" />
+
+        {mode === 'history' && (
+          <>
+            <div className="space-y-3 px-4 py-4">
+              <Button className="w-full" onClick={handleHistory} disabled={historyLoading}>
+                {historyLoading ? 'Analizando...' : 'Generar análisis histórico (5 años)'}
+              </Button>
+              {historyError && <p className="text-xs text-destructive">{historyError}</p>}
+              {history && (
+                <div className="rounded-xl border border-border/60 bg-card px-3 py-3 text-xs text-foreground shadow-sm">
+                  <div className="font-semibold text-foreground">Resumen</div>
+                  <p className="mt-1">{history.summary}</p>
+                  <div className="mt-2 grid gap-2 text-[11px] text-muted-foreground">
+                    <div>Media temp: {history.metrics.avgTemp ?? 'N/D'} °C</div>
+                    <div>Precipitación total: {history.metrics.totalPrecip ?? 'N/D'} mm</div>
+                    <div>Días analizados: {history.metrics.days}</div>
                   </div>
-                ) : null}
-              </div>
-            )}
-          </div>
-          <div className="border-t border-black/10" />
-        </>
-      )}
-
-      {mode === 'save' && (
-        <>
-          <div className="space-y-3 px-4 py-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Guardar ubicación
-            </div>
-            <Input
-              placeholder="Nota rápida (opcional)"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-            <Input
-              placeholder="Comentario (opcional)"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-            />
-            <Button className="w-full" onClick={handleSave}>
-              Guardar ubicación
-            </Button>
-            {savingError && <p className="text-xs text-red-500">{savingError}</p>}
-          </div>
-          <div className="border-t border-black/10" />
-        </>
-      )}
-
-      <div className="max-h-[35vh] overflow-y-auto px-4 pb-4">
-        <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-          Ubicaciones guardadas
-        </div>
-        <div className="mt-3 space-y-2">
-          {saved.length === 0 && (
-            <div className="text-xs text-gray-400">Aún no hay ubicaciones guardadas.</div>
-          )}
-          {saved.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-xl border border-black/5 bg-white px-3 py-3 shadow-sm"
-            >
-              <div className="text-xs font-semibold text-gray-900">{item.label}</div>
-              <div className="mt-1 text-[11px] text-gray-500">
-                {item.lat.toFixed(4)}, {item.lon.toFixed(4)}
-              </div>
-              {(item.note || item.comment) && (
-                <div className="mt-2 text-[11px] text-gray-700">
-                  {item.note && <div>Nota: {item.note}</div>}
-                  {item.comment && <div>Comentario: {item.comment}</div>}
+                  {history.metrics.byYear?.length ? (
+                    <div className="mt-3 space-y-1 text-[11px] text-muted-foreground">
+                      {history.metrics.byYear.map((year) => (
+                        <div key={year.year}>
+                          {year.year}: {year.avgTemp ?? 'N/D'} °C · {year.totalPrecip ?? 'N/D'} mm
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               )}
-              <div className="mt-3 flex items-center justify-between text-[11px] text-gray-500">
-                <button
-                  type="button"
-                  className="text-blue-600 hover:text-blue-700"
-                  onClick={() =>
-                    onSelectLocation({ lat: item.lat, lon: item.lon, label: item.label })
-                  }
-                >
-                  Ir a ubicación
-                </button>
-                <button
-                  type="button"
-                  className="text-red-500 hover:text-red-600"
-                  onClick={() => handleDelete(item.id)}
-                >
-                  Eliminar
-                </button>
-              </div>
             </div>
-          ))}
-        </div>
+            <div className="border-t border-border" />
+          </>
+        )}
+
+        {mode === 'save' && (
+          <>
+            <div className="space-y-3 px-4 py-4">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Guardar ubicación
+              </div>
+              <Input
+                placeholder="Nota rápida (opcional)"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+              <Input
+                placeholder="Comentario (opcional)"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+              />
+              <Button className="w-full" onClick={handleSave}>
+                Guardar ubicación
+              </Button>
+              {savingError && <p className="text-xs text-destructive">{savingError}</p>}
+            </div>
+            <div className="border-t border-border" />
+          </>
+        )}
+
+        {mode === 'save' && (
+          <div className="px-4 pb-4">
+            <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Ubicaciones guardadas
+            </div>
+            <div className="mt-3 space-y-2">
+              {saved.length === 0 && (
+                <div className="text-xs text-muted-foreground">Aún no hay ubicaciones guardadas.</div>
+              )}
+              {saved.map((item) => (
+                <div
+                  key={item.id}
+                  className="rounded-xl border border-border/60 bg-card px-3 py-3 shadow-sm"
+                >
+                  <div className="text-xs font-semibold text-foreground">{item.label}</div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    {item.lat.toFixed(4)}, {item.lon.toFixed(4)}
+                  </div>
+                  {(item.note || item.comment) && (
+                    <div className="mt-2 text-[11px] text-foreground">
+                      {item.note && <div>Nota: {item.note}</div>}
+                      {item.comment && <div>Comentario: {item.comment}</div>}
+                    </div>
+                  )}
+                  <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
+                    <button
+                      type="button"
+                      className="text-primary hover:opacity-80"
+                      onClick={() =>
+                        onSelectLocation({ lat: item.lat, lon: item.lon, label: item.label })
+                      }
+                    >
+                      Ir a ubicación
+                    </button>
+                    <button
+                      type="button"
+                      className="text-destructive hover:opacity-80"
+                      onClick={() => handleDelete(item.id)}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

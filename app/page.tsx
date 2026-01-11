@@ -31,16 +31,23 @@ export default function HomePage() {
   const aqicnToken = process.env.NEXT_PUBLIC_AQICN_TOKEN ?? '';
   const aqiAvailable = Boolean(aqicnToken);
 
+  const togglePanel = (panel: 'layers' | 'compare' | 'history' | 'save') => {
+    setLayersOpen((prev) => (panel === 'layers' ? !prev : false));
+    setCompareOpen((prev) => (panel === 'compare' ? !prev : false));
+    setHistoryOpen((prev) => (panel === 'history' ? !prev : false));
+    setSaveOpen((prev) => (panel === 'save' ? !prev : false));
+  };
+
 
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       <LeftSidebar
         layersOpen={layersOpen}
-        onLayersToggle={() => setLayersOpen((prev) => !prev)}
-        onCompareClick={() => setCompareOpen((prev) => !prev)}
-        onHistoryClick={() => setHistoryOpen((prev) => !prev)}
-        onSaveClick={() => setSaveOpen((prev) => !prev)}
+        onLayersToggle={() => togglePanel('layers')}
+        onCompareClick={() => togglePanel('compare')}
+        onHistoryClick={() => togglePanel('history')}
+        onSaveClick={() => togglePanel('save')}
         baseLayerId={baseLayerId}
         overlayLayerIds={overlayLayerIds}
         onBaseLayerChange={(id) => setBaseLayerId(id)}

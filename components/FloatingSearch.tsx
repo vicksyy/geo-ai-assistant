@@ -1,8 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
 import SearchInput from './SearchInput';
-import { LucideSearch } from 'lucide-react';
 
 export default function FloatingSearch({
   onResult,
@@ -15,39 +13,9 @@ export default function FloatingSearch({
     placeType?: string | null;
   }) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
   return (
-     <div className="w-full max-w-lg mx-auto">
-  {/* Mobile */}
-  <div className="md:hidden">
-    {!open ? (
-      <button
-        onClick={() => setOpen(true)}
-        className="w-10 h-10 rounded-full bg-white/50 dark:bg-gray-700/50 shadow-lg flex items-center justify-center">
-        <LucideSearch className="w-5 h-5 text-black dark:text-white" />
-      </button>
-    ) : (
+    <div className="w-[92vw] max-w-none md:w-full md:max-w-lg mx-auto">
       <SearchInput onResult={onResult} />
-    )}
-  </div>
-
-  {/* Desktop */}
-  <div className="hidden md:block">
-    <SearchInput onResult={onResult} />
-  </div>
-</div>
-
+    </div>
   );
 }

@@ -7,6 +7,7 @@ import {
   BaseLayerId,
   OverlayLayerId,
 } from '../map/layers';
+import ThemeToggle from './ThemeToggle';
 
 interface LeftSidebarProps {
   layersOpen: boolean;
@@ -38,10 +39,10 @@ export default function LeftSidebar({
   return (
     <>
       {/* Desktop */}
-      <aside className="hidden md:flex w-[3vw] min-w-12 flex-col items-center justify-center gap-6 z-3000 bg-[#F4EDE6] relative">
+      <aside className="hidden md:flex w-[3vw] min-w-12 flex-col items-center justify-center gap-6 z-3000 bg-card/90 text-foreground shadow-lg border border-border relative">
         <button
           type="button"
-          className="w-10 h-10 flex items-center justify-center rounded-lg text-black hover:bg-black/10 transition relative"
+          className="w-10 h-10 flex items-center justify-center rounded-lg text-foreground hover:bg-accent transition relative"
           onClick={onLayersToggle}
           onMouseEnter={(e) => {
             const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
@@ -54,9 +55,11 @@ export default function LeftSidebar({
           🗺️
         </button>
 
+        <ThemeToggle />
+
         <button
           type="button"
-          className="w-10 h-10 flex items-center justify-center rounded-lg text-black hover:bg-black/10 transition relative"
+          className="w-10 h-10 flex items-center justify-center rounded-lg text-foreground hover:bg-accent transition relative"
           onClick={() => onCompareClick?.()}
           onMouseEnter={(e) => {
             const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
@@ -69,11 +72,11 @@ export default function LeftSidebar({
 
         <button
           type="button"
-          className="w-10 h-10 flex items-center justify-center rounded-lg text-black hover:bg-black/10 transition relative"
+          className="w-10 h-10 flex items-center justify-center rounded-lg text-foreground hover:bg-accent transition relative"
           onClick={() => onHistoryClick?.()}
           onMouseEnter={(e) => {
             const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-            setTooltip({ name: 'Histórico y notas', top: rect.top + rect.height / 2, left: rect.right });
+            setTooltip({ name: 'Histórico', top: rect.top + rect.height / 2, left: rect.right });
           }}
           onMouseLeave={() => setTooltip(null)}
         >
@@ -82,23 +85,22 @@ export default function LeftSidebar({
 
         <button
           type="button"
-          className="w-10 h-10 flex items-center justify-center rounded-lg text-black hover:bg-black/10 transition relative"
+          className="w-10 h-10 flex items-center justify-center rounded-lg text-foreground hover:bg-accent transition relative"
           onClick={() => onSaveClick?.()}
           onMouseEnter={(e) => {
             const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-            setTooltip({ name: 'Guardar ubicación', top: rect.top + rect.height / 2, left: rect.right });
+            setTooltip({ name: 'Notas y comentarios', top: rect.top + rect.height / 2, left: rect.right });
           }}
           onMouseLeave={() => setTooltip(null)}
         >
           💾
         </button>
-
       </aside>
 
       {/* Tooltip encima del mapa */}
       {tooltip && (
         <div
-          className="fixed bg-black text-white text-xs px-2 py-1 rounded shadow-lg z-[9999] whitespace-nowrap"
+          className="fixed bg-foreground text-background text-xs px-2 py-1 rounded shadow-lg z-[9999] whitespace-nowrap"
           style={{ top: tooltip.top, left: tooltip.left, transform: 'translateY(-50%)' }}
         >
           {tooltip.name}
@@ -108,13 +110,13 @@ export default function LeftSidebar({
       {layersOpen && (
         <div
           id="layers-panel"
-          className="fixed left-4 right-4 bottom-4 md:left-16 md:top-24 md:bottom-auto md:right-auto md:w-64 bg-white border border-black/10 rounded-xl shadow-xl z-[6000] p-4"
+          className="fixed left-4 right-4 bottom-4 md:left-16 md:top-24 md:bottom-auto md:right-auto md:w-64 bg-card border border-border rounded-xl shadow-xl z-[6000] p-4 text-foreground"
         >
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-gray-800">Capas del mapa</h3>
+            <h3 className="text-sm font-semibold text-foreground">Capas del mapa</h3>
             <button
               type="button"
-              className="text-gray-400 hover:text-gray-700"
+              className="text-muted-foreground hover:text-foreground"
               onClick={onLayersToggle}
               aria-label="Cerrar capas"
             >
@@ -124,19 +126,19 @@ export default function LeftSidebar({
 
           <div className="space-y-3">
             <div>
-              <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-2">Base</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">Base</p>
               <div className="space-y-2">
                 {baseLayerOptions.map((layer) => (
                   <label
                     key={layer.id}
-                    className={`flex items-center gap-2 text-sm text-gray-700 ${
+                    className={`flex items-center gap-2 text-sm text-foreground ${
                       layer.requiresToken && !aqiAvailable ? 'opacity-50 cursor-not-allowed' : ''
                     }`}
                   >
                     <input
                       type="radio"
                       name="base-layer"
-                      className="accent-black"
+                      className="accent-primary"
                       disabled={layer.requiresToken && !aqiAvailable}
                       checked={baseLayerId === layer.id}
                       onChange={() => onBaseLayerChange(layer.id)}
@@ -151,13 +153,15 @@ export default function LeftSidebar({
             </div>
 
             <div>
-              <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-2">Superposiciones</p>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">
+                Superposiciones
+              </p>
               <div className="space-y-2">
                 {overlayLayerOptions.map((layer) => (
-                  <label key={layer.id} className="flex items-center gap-2 text-sm text-gray-700">
+                  <label key={layer.id} className="flex items-center gap-2 text-sm text-foreground">
                     <input
                       type="checkbox"
-                      className="accent-black"
+                      className="accent-primary"
                       checked={overlayLayerIds.includes(layer.id)}
                       onChange={() => onOverlayToggle(layer.id)}
                     />
@@ -172,10 +176,10 @@ export default function LeftSidebar({
       )}
 
       {/* Mobile */}
-      <div className="fixed top-1/2 right-3 -translate-y-1/2 flex md:hidden flex-col gap-3 z-[5000]">
+      <div className="fixed top-1/2 right-3 -translate-y-1/2 md:hidden z-[1100] flex flex-col items-center gap-3">
         <button
           type="button"
-          className="w-10 h-10 flex items-center justify-center rounded-lg bg-[#211304] text-white shadow-lg hover:scale-110 transition"
+          className="w-11 h-11 flex items-center justify-center rounded-full bg-card/95 text-foreground shadow-lg border border-border hover:bg-accent transition"
           onClick={onLayersToggle}
           aria-expanded={layersOpen}
           aria-controls="layers-panel"
@@ -183,29 +187,35 @@ export default function LeftSidebar({
           🗺️
         </button>
 
-        <button
-          type="button"
-          className="w-10 h-10 flex items-center justify-center rounded-lg bg-[#211304] text-white shadow-lg hover:scale-110 transition"
-          onClick={() => onCompareClick?.()}
-        >
-          🏙️
-        </button>
+        <ThemeToggle />
+      </div>
 
-        <button
-          type="button"
-          className="w-10 h-10 flex items-center justify-center rounded-lg bg-[#211304] text-white shadow-lg hover:scale-110 transition"
-          onClick={() => onHistoryClick?.()}
-        >
-          🗂️
-        </button>
+      <div className="fixed bottom-0 left-0 right-0 md:hidden z-[1300]">
+        <div className="mx-auto flex w-full items-center justify-center gap-3 bg-card/95 px-4 py-3 shadow-xl border-t border-border">
+          <button
+            type="button"
+            className="w-11 h-11 flex items-center justify-center rounded-full text-foreground hover:bg-accent transition"
+            onClick={() => onCompareClick?.()}
+          >
+            🏙️
+          </button>
 
-        <button
-          type="button"
-          className="w-10 h-10 flex items-center justify-center rounded-lg bg-[#211304] text-white shadow-lg hover:scale-110 transition"
-          onClick={() => onSaveClick?.()}
-        >
-          💾
-        </button>
+          <button
+            type="button"
+            className="w-11 h-11 flex items-center justify-center rounded-full text-foreground hover:bg-accent transition"
+            onClick={() => onHistoryClick?.()}
+          >
+            🗂️
+          </button>
+
+          <button
+            type="button"
+            className="w-11 h-11 flex items-center justify-center rounded-full text-foreground hover:bg-accent transition"
+            onClick={() => onSaveClick?.()}
+          >
+            💾
+          </button>
+        </div>
       </div>
     </>
   );

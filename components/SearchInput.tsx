@@ -185,9 +185,10 @@ export default function SearchInput({ onResult }: SearchInputProps) {
             ? prioritized(containsMatches)
             : prioritized(allResults);
 
-        cacheRef.current.set(query.toLowerCase(), finalResults);
-        setSuggestions(finalResults);
-        setShowSuggestions(finalResults.length > 0);
+        const limitedResults = finalResults.slice(0, 4);
+        cacheRef.current.set(query.toLowerCase(), limitedResults);
+        setSuggestions(limitedResults);
+        setShowSuggestions(limitedResults.length > 0);
       } catch (err) {
         if ((err as any).name !== 'AbortError') {
           console.error(err);
@@ -199,18 +200,8 @@ export default function SearchInput({ onResult }: SearchInputProps) {
   }, [direccion]);
 
   return (
-   <div className="relative w-full">
-     <div
-        className="
-          flex items-center
-          rounded-xl
-          px-3 py-2
-          backdrop-blur-md
-          bg-white/40 dark:bg-gray-800/40
-          shadow-lg
-          w-full
-        "
-      >
+    <div className="relative w-full">
+      <div className="relative flex items-center rounded-full border border-border bg-card/90 px-4 py-2 shadow-lg dark:shadow-none backdrop-blur-md">
         <Input
           placeholder="Introduce una dirección"
           value={direccion}
@@ -222,35 +213,29 @@ export default function SearchInput({ onResult }: SearchInputProps) {
           onBlur={() => {
             setTimeout(() => setShowSuggestions(false), 150);
           }}
-          className="
-            flex-1
-            bg-transparent
-            border-none
-            focus:ring-0
-            text-black dark:text-white
-            placeholder-black/60 dark:placeholder-white/60
-          "
+          className="flex-1 bg-transparent dark:bg-transparent border-0 shadow-none ring-0 pr-10 text-foreground placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
         />
 
         <Button
           onClick={() => handleSearch()}
           disabled={loading}
-          className="ml-2 p-2 flex items-center justify-center"
+          className="absolute right-2 h-8 w-8 rounded-full p-0 text-foreground hover:bg-accent"
           variant="ghost"
           size="icon"
+          aria-label="Buscar"
         >
-          {loading ? '...' : <LucideSearch className="w-5 h-5 text-black dark:text-white" />}
+          {loading ? '...' : <LucideSearch className="h-4 w-4" />}
         </Button>
       </div>
 
       {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute left-0 right-0 top-full z-[1200] mt-2 rounded-xl border border-black/10 bg-white/95 shadow-xl backdrop-blur">
-          <ul className="max-h-64 overflow-auto py-1 text-sm text-gray-800">
+        <div className="absolute left-0 right-0 top-full z-[1200] mt-2 rounded-xl border border-border bg-popover/95 shadow-xl backdrop-blur">
+          <ul className="max-h-64 overflow-auto py-1 text-sm text-foreground">
             {suggestions.map((item) => (
               <li key={`${item.lat}-${item.lon}`}>
                 <button
                   type="button"
-                  className="w-full px-3 py-2 text-left hover:bg-black/5"
+                  className="w-full px-3 py-2 text-left hover:bg-accent"
                   onClick={() => {
                     setDireccion(item.display_name);
                     onResult({

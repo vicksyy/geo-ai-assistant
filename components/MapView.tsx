@@ -166,8 +166,8 @@ export default function MapView({ coordenadas, onMapClick, onLocationResolved, l
     markerRef.current
       .bindPopup(
         `<div class="popup-content" style="min-width:220px;">
-          <div style="font-weight:600; color:#111827;">${label}</div>
-          <div style="margin-top:4px; font-size:12px; color:#4b5563; font-weight:400;">📍 ${coords.lat.toFixed(
+          <div class="popup-title">${label}</div>
+          <div class="popup-subtitle">📍 ${coords.lat.toFixed(
             6
           )}, ${coords.lon.toFixed(6)}</div>
           <div style="margin-top:10px; display:flex; justify-content:center;">
@@ -239,9 +239,9 @@ export default function MapView({ coordenadas, onMapClick, onLocationResolved, l
         const label = locationMatch[1];
         const value = locationMatch[2];
         return (
-          <p key={`line-${index}`} className="text-sm text-gray-800">
-            <span className="font-semibold text-gray-900">{label}:</span>{' '}
-            <span className="font-semibold text-gray-900">{value}</span>
+          <p key={`line-${index}`} className="text-sm text-foreground">
+            <span className="font-semibold text-foreground">{label}:</span>{' '}
+            <span className="font-semibold text-foreground">{value}</span>
           </p>
         );
       }
@@ -252,15 +252,15 @@ export default function MapView({ coordenadas, onMapClick, onLocationResolved, l
       if (match) {
         const rest = trimmed.slice(match.length + 1).trim();
         return (
-          <p key={`line-${index}`} className="text-sm text-gray-800">
-            <span className="font-semibold text-gray-900">{match}:</span>
+          <p key={`line-${index}`} className="text-sm text-foreground">
+            <span className="font-semibold text-foreground">{match}:</span>
             {rest ? ` ${rest}` : ''}
           </p>
         );
       }
 
       return (
-        <p key={`line-${index}`} className="text-sm text-gray-700">
+        <p key={`line-${index}`} className="text-sm text-muted-foreground">
           {line}
         </p>
       );
@@ -1001,7 +1001,7 @@ return (
     md:left-4
     md:w-[380px]
     md:h-[calc(100%-2rem)]
-    bg-white
+    bg-card
     shadow-xl
     rounded-t-lg
     md:rounded-lg
@@ -1021,12 +1021,12 @@ return (
 >
   {/* HEADER */}
   <div className="flex justify-between items-center flex-shrink-0">
-    <h2 className="text-lg font-semibold">
+    <h2 className="text-lg font-semibold text-foreground">
       Informe IA
     </h2>
 
     <button
-      className="text-gray-400 hover:text-gray-700"
+      className="text-muted-foreground hover:text-foreground"
       onClick={() => {
         setMostrarInforme(false);
 
@@ -1039,18 +1039,18 @@ return (
       ✕
     </button>
   </div>
-  <div className="-mx-4 mb-3 mt-2 h-px bg-gray-200" />
+  <div className="-mx-4 mb-3 mt-2 h-px bg-border" />
 
   {/* CONTENIDO SCROLL */}
   <div className="flex-1 overflow-y-auto">
     {loadingInforme && (
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-muted-foreground">
         Generando informe...
       </p>
     )}
 
     {!loadingInforme && !informe && (
-      <p className="text-sm text-gray-400">
+      <p className="text-sm text-muted-foreground">
         Haz click en el mapa y genera un informe
       </p>
     )}
@@ -1064,17 +1064,17 @@ return (
 
   {/* FOOTER - BOTÓN EXPORTAR PDF FIJO ABAJO */}
   {!loadingInforme && informe && (
-    <div className="-mx-4 mt-4 flex-shrink-0 border-t border-gray-300 pt-4 px-4">
+    <div className="-mx-4 mt-4 flex-shrink-0 border-t border-border pt-4 px-4">
       <button
         className="
           w-full
           py-2
           rounded-md
-          bg-blue-600
-          text-white
+          bg-primary
+          text-primary-foreground
           text-sm
           font-medium
-          hover:bg-blue-700
+          hover:bg-primary/90
           transition
         "
         onClick={handleExportPdf}
