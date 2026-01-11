@@ -1,5 +1,5 @@
 export type BaseLayerId = 'osm' | 'topo' | 'satellite' | 'ign' | 'ica';
-export type OverlayLayerId = 'railways' | 'seamark' | 'inundacion';
+export type OverlayLayerId = 'railways' | 'transport' | 'inundacion';
 
 export const baseLayerOptions: {
   id: BaseLayerId;
@@ -60,20 +60,20 @@ export const overlayLayerOptions: {
   version?: string;
 }[] = [
   {
+    id: 'transport',
+    label: 'Transporte',
+    kind: 'tile',
+    url: 'https://tileserver.memomaps.de/tilegen/{z}/{x}/{y}.png',
+    attribution: '© OpenStreetMap contributors, tiles by Memomaps',
+    maxZoom: 19,
+  },
+  {
     id: 'railways',
     label: 'Ferrocarriles',
     kind: 'tile',
     url: 'https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png',
     attribution: '© OpenRailwayMap',
     maxZoom: 19,
-  },
-  {
-    id: 'seamark',
-    label: 'Cartas náuticas',
-    kind: 'tile',
-    url: 'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',
-    attribution: '© OpenSeaMap contributors',
-    maxZoom: 18,
   },
   {
     id: 'inundacion',
@@ -121,6 +121,7 @@ export function buildLayers(L: typeof import('leaflet')) {
           transparent: layer.transparent ?? true,
           version: layer.version ?? '1.3.0',
           attribution: layer.attribution,
+          className: layer.id === 'inundacion' ? 'flood-blur' : undefined,
         });
       } else {
         acc[layer.id] = L.tileLayer(layer.url, {

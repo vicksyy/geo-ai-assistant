@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import MapView from '../components/MapView';
 import LeftSidebar from '../components/LeftSidebar';
 import FloatingSearch from '../components/FloatingSearch';
@@ -23,6 +23,8 @@ export default function HomePage() {
   const [saveOpen, setSaveOpen] = useState(false);
   const [baseLayerId, setBaseLayerId] = useState<BaseLayerId>('osm');
   const [overlayLayerIds, setOverlayLayerIds] = useState<OverlayLayerId[]>([]);
+  const [airQualityOn, setAirQualityOn] = useState(false);
+  const lastBaseRef = useRef<BaseLayerId>('osm');
   const [lastLocation, setLastLocation] = useState<{
     lat: number;
     lon: number;
@@ -38,6 +40,35 @@ export default function HomePage() {
     setSaveOpen((prev) => (panel === 'save' ? !prev : false));
   };
 
+  useEffect(() => {
+    if (baseLayerId !== 'ica') {
+      lastBaseRef.current = baseLayerId;
+      if (airQualityOn) setAirQualityOn(false);
+      return;
+    }
+    if (!airQualityOn) setAirQualityOn(true);
+  }, [baseLayerId, airQualityOn]);
+
+  const handleBaseChange = (id: BaseLayerId) => {
+    lastBaseRef.current = id;
+    setAirQualityOn(false);
+    setBaseLayerId(id);
+  };
+
+  const handleAirQualityToggle = () => {
+    if (!aqiAvailable) return;
+    if (airQualityOn) {
+      setAirQualityOn(false);
+      setBaseLayerId(lastBaseRef.current ?? 'osm');
+      return;
+    }
+    if (baseLayerId !== 'ica') {
+      lastBaseRef.current = baseLayerId;
+    }
+    setAirQualityOn(true);
+    setBaseLayerId('ica');
+  };
+
 
 
   return (
@@ -50,13 +81,16 @@ export default function HomePage() {
         onSaveClick={() => togglePanel('save')}
         baseLayerId={baseLayerId}
         overlayLayerIds={overlayLayerIds}
-        onBaseLayerChange={(id) => setBaseLayerId(id)}
+        onBaseLayerChange={handleBaseChange}
         onOverlayToggle={(id) =>
           setOverlayLayerIds((prev) =>
             prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
           )
         }
         aqiAvailable={aqiAvailable}
+        aqicnToken={aqicnToken}
+        airQualityOn={airQualityOn}
+        onAirQualityToggle={handleAirQualityToggle}
       />
 
       <div className="relative flex-1">

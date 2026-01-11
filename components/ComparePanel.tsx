@@ -120,7 +120,7 @@ export default function ComparePanel({
   };
 
   return (
-    <div className="fixed inset-0 z-[1200] flex flex-col overflow-hidden bg-card/95 pb-20 text-foreground shadow-2xl backdrop-blur md:absolute md:left-4 md:right-auto md:top-24 md:inset-auto md:max-h-[80vh] md:w-[520px] md:rounded-2xl md:border md:border-border md:pb-0">
+    <div className="fixed inset-0 z-[1200] flex flex-col overflow-hidden bg-card/95 pb-20 text-foreground shadow-2xl backdrop-blur md:absolute md:left-4 md:right-auto md:top-24 md:inset-auto md:max-h-[80vh] md:w-[420px] md:rounded-2xl md:border md:border-border md:pb-0">
       <div className="flex items-center justify-between px-4 py-3">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Comparar ciudades</h3>

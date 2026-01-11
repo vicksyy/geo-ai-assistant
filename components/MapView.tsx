@@ -932,7 +932,7 @@ return (
 
     {layerState?.baseId === 'ica' && (
       <>
-        <div className="absolute left-3 top-3 z-[1100] w-[170px] rounded-2xl border border-black/10 bg-black/55 px-3 py-3 text-white shadow-xl backdrop-blur sm:left-4 sm:top-4 sm:w-[190px] md:hidden">
+        <div className="absolute left-3 top-20 z-[1100] w-[170px] rounded-2xl border border-black/10 bg-black/55 px-3 py-3 text-white shadow-xl backdrop-blur sm:left-4 sm:top-24 sm:w-[190px] md:hidden">
           <div className="text-[11px] font-semibold tracking-wide">ICA (ES)</div>
           <div className="mt-3 space-y-2 text-[11px]">
             <div className="flex items-start gap-2">
@@ -992,12 +992,13 @@ return (
 <div
   className={`
     fixed
-    left-4
-    right-4
-    bottom-4
+    left-0
+    right-0
+    bottom-16
     h-[40%]
     md:absolute
     md:top-4
+    md:bottom-4
     md:left-4
     md:w-[380px]
     md:h-[calc(100%-2rem)]

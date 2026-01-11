@@ -213,13 +213,13 @@ export default function SearchInput({ onResult }: SearchInputProps) {
           onBlur={() => {
             setTimeout(() => setShowSuggestions(false), 150);
           }}
-          className="flex-1 bg-transparent dark:bg-transparent border-0 shadow-none ring-0 pr-10 text-foreground placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
+          className="flex-1 bg-transparent dark:bg-transparent border-0 shadow-none ring-0 pr-12 text-foreground placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
         />
 
         <Button
           onClick={() => handleSearch()}
           disabled={loading}
-          className="absolute right-2 h-8 w-8 rounded-full p-0 text-foreground hover:bg-accent"
+          className="absolute right-3 h-8 w-8 rounded-full p-0 text-foreground hover:bg-accent"
           variant="ghost"
           size="icon"
           aria-label="Buscar"
