@@ -12,6 +12,9 @@ type CityResult = {
   areaKm2?: number | null;
   density?: number | null;
   elevation?: number | null;
+  malePercent?: number | null;
+  femalePercent?: number | null;
+  flagUrl?: string | null;
   aqi?: number | null;
   aqiLabel?: string | null;
   risk?: string | null;
@@ -159,8 +162,10 @@ export default function ComparePanel({
               {showA && suggestionsA.length > 0 && (
                 <div className="absolute left-0 right-0 top-full z-[1300] mt-2 rounded-xl border border-border bg-popover/95 shadow-xl backdrop-blur">
                   <ul className="max-h-56 overflow-auto py-1 text-xs text-foreground">
-                    {suggestionsA.map((item) => (
-                      <li key={`a-${item.lat}-${item.lon}`}>
+                    {suggestionsA.map((item, index) => (
+                      <li
+                        key={`a-${item.lat}-${item.lon}-${item.display_name ?? item.name ?? ''}-${index}`}
+                      >
                         <button
                           type="button"
                         className="w-full px-3 py-2 text-left hover:bg-accent"
@@ -197,8 +202,10 @@ export default function ComparePanel({
               {showB && suggestionsB.length > 0 && (
                 <div className="absolute left-0 right-0 top-full z-[1300] mt-2 rounded-xl border border-border bg-popover/95 shadow-xl backdrop-blur">
                   <ul className="max-h-56 overflow-auto py-1 text-xs text-foreground">
-                    {suggestionsB.map((item) => (
-                      <li key={`b-${item.lat}-${item.lon}`}>
+                    {suggestionsB.map((item, index) => (
+                      <li
+                        key={`b-${item.lat}-${item.lon}-${item.display_name ?? item.name ?? ''}-${index}`}
+                      >
                         <button
                           type="button"
                         className="w-full px-3 py-2 text-left hover:bg-accent"
@@ -233,7 +240,17 @@ export default function ComparePanel({
                     key={city.name}
                     className="rounded-xl border border-border/60 bg-card px-3 py-3 shadow-sm"
                   >
-                    <div className="text-sm font-semibold text-foreground">{city.name}</div>
+                    <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      {city.flagUrl && (
+                        <img
+                          src={city.flagUrl}
+                          alt={`Bandera de ${city.name}`}
+                          className="h-4 w-6 rounded-sm border border-border/60 object-cover"
+                          loading="lazy"
+                        />
+                      )}
+                      <span>{city.name}</span>
+                    </div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       {city.lat.toFixed(4)}, {city.lon.toFixed(4)}
                     </div>
@@ -255,6 +272,18 @@ export default function ComparePanel({
                     <div>
                       <span className="font-semibold text-foreground">Altitud:</span>{' '}
                       {city.elevation ? `${city.elevation.toLocaleString('es-ES')} m` : 'No disponible'}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-foreground">Hombres (%):</span>{' '}
+                      {city.malePercent !== null && city.malePercent !== undefined
+                        ? `${city.malePercent.toLocaleString('es-ES')}%`
+                        : 'No disponible'}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-foreground">Mujeres (%):</span>{' '}
+                      {city.femalePercent !== null && city.femalePercent !== undefined
+                        ? `${city.femalePercent.toLocaleString('es-ES')}%`
+                        : 'No disponible'}
                     </div>
                     <div>
                       <span className="font-semibold text-foreground">Calidad del aire (AQI):</span>{' '}

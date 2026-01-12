@@ -43,6 +43,70 @@ export async function GET(req: Request) {
     ]);
     const data = [...cityData, ...generalData];
 
+    const normalize = (value: string) =>
+      value
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const splitLabelParts = (label: string) =>
+      label
+        .split(',')
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+    const deriveCityCountryFromLabel = (item: any) => {
+      const label = typeof item.display_name === 'string' ? item.display_name : '';
+      if (!label) return null;
+      const parts = splitLabelParts(label);
+      if (parts.length < 2) return null;
+      const city = parts[0];
+      const country = parts[parts.length - 1];
+      if (!city || !country) return null;
+      if (normalize(city) === normalize(country)) return null;
+      if (!cityTypes.has(item.type)) return null;
+      return { city, country };
+    };
+
+    const getCityName = (item: any, cityOnlyMode = false) => {
+      if (!item) return null;
+      const address = item.address ?? {};
+      const addressCity =
+        address.city ??
+        address.town ??
+        address.village ??
+        address.municipality ??
+        address.locality ??
+        null;
+      if (cityOnlyMode) {
+        if (addressCity) return addressCity;
+        return deriveCityCountryFromLabel(item)?.city ?? null;
+      }
+      const label = typeof item.display_name === 'string' ? item.display_name : '';
+      return (
+        addressCity ??
+        item.name ??
+        (label ? label.split(',')[0]?.trim() : null) ??
+        null
+      );
+    };
+
+    const getCountryName = (item: any, cityOnlyMode = false) => {
+      if (!item) return null;
+      const address = item.address ?? {};
+      if (cityOnlyMode) {
+        return address.country ?? item.country ?? deriveCityCountryFromLabel(item)?.country ?? null;
+      }
+      const label = typeof item.display_name === 'string' ? item.display_name : '';
+      return (
+        address.country ??
+        item.country ??
+        (label ? label.split(',').slice(-1)[0]?.trim() : null) ??
+        null
+      );
+    };
+
     const maptilerKey = process.env.MAPTILER_API_KEY;
     let maptilerData: any[] = [];
     if (maptilerKey) {
@@ -53,6 +117,11 @@ export async function GET(req: Request) {
       maptilerData = (maptilerRes?.features ?? []).map((feature: any) => {
         const placeType = feature.place_type ?? [];
         const isCityLike = placeType.includes('place') || placeType.includes('locality');
+        const context = feature.context ?? [];
+        const country = context.find((item: any) =>
+          String(item?.id ?? '').startsWith('country')
+        )?.text;
+        const cityName = isCityLike ? feature.text ?? '' : null;
         return {
           display_name: feature.place_name ?? feature.text ?? '',
           name: feature.text ?? '',
@@ -63,16 +132,14 @@ export async function GET(req: Request) {
           type: isCityLike ? 'city' : placeType[0] ?? null,
           class: 'place',
           importance: 1,
+          address: {
+            city: cityName ?? null,
+            country: country ?? null,
+          },
+          country: country ?? null,
         };
       });
     }
-
-    const normalize = (value: string) =>
-      value
-        .toLowerCase()
-        .replace(/[^\p{L}\p{N}]+/gu, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
 
     const normalizedQuery = normalize(query);
     const queryHasLatin = /[a-z]/i.test(query);
@@ -90,63 +157,18 @@ export async function GET(req: Request) {
     const isStreetQuery = /(calle|avenida|av\.|av |carrer|paseo|plaza|ramblas|rambla|pasaje|trav|travesia|camino)/i.test(
       query
     );
-    const popularCities = [
-      { name: 'Madrid', region: 'Comunidad de Madrid', country: 'Espana', lat: 40.4168, lon: -3.7038 },
-      { name: 'Barcelona', region: 'Cataluna', country: 'Espana', lat: 41.3874, lon: 2.1686 },
-      { name: 'Valencia', region: 'Comunidad Valenciana', country: 'Espana', lat: 39.4699, lon: -0.3763 },
-      { name: 'Sevilla', region: 'Andalucia', country: 'Espana', lat: 37.3891, lon: -5.9845 },
-      { name: 'Zaragoza', region: 'Aragon', country: 'Espana', lat: 41.6488, lon: -0.8891 },
-      { name: 'Malaga', region: 'Andalucia', country: 'Espana', lat: 36.7213, lon: -4.4214 },
-      { name: 'Bilbao', region: 'Pais Vasco', country: 'Espana', lat: 43.2630, lon: -2.9350 },
-      { name: 'Granada', region: 'Andalucia', country: 'Espana', lat: 37.1773, lon: -3.5986 },
-      { name: 'Alicante', region: 'Comunidad Valenciana', country: 'Espana', lat: 38.3452, lon: -0.4810 },
-      { name: 'Murcia', region: 'Region de Murcia', country: 'Espana', lat: 37.9922, lon: -1.1307 },
-      { name: 'Palma', region: 'Islas Baleares', country: 'Espana', lat: 39.5696, lon: 2.6502 },
-      { name: 'Las Palmas', region: 'Canarias', country: 'Espana', lat: 28.1235, lon: -15.4363 },
-      { name: 'Paris', region: 'Ile-de-France', country: 'Francia', lat: 48.8566, lon: 2.3522 },
-      { name: 'Londres', region: 'Inglaterra', country: 'Reino Unido', lat: 51.5072, lon: -0.1276 },
-      { name: 'Roma', region: 'Lacio', country: 'Italia', lat: 41.9028, lon: 12.4964 },
-      { name: 'Berlin', region: 'Berlin', country: 'Alemania', lat: 52.5200, lon: 13.4050 },
-      { name: 'Nueva York', region: 'Nueva York', country: 'Estados Unidos', lat: 40.7128, lon: -74.0060 },
-      { name: 'Los Angeles', region: 'California', country: 'Estados Unidos', lat: 34.0522, lon: -118.2437 },
-      { name: 'Tokyo', region: 'Tokyo', country: 'Japon', lat: 35.6762, lon: 139.6503 },
-      { name: 'Ciudad de Mexico', region: 'CDMX', country: 'Mexico', lat: 19.4326, lon: -99.1332 },
-      { name: 'Buenos Aires', region: 'Buenos Aires', country: 'Argentina', lat: -34.6037, lon: -58.3816 },
-      { name: 'Sao Paulo', region: 'Sao Paulo', country: 'Brasil', lat: -23.5505, lon: -46.6333 },
-    ];
-
-    const popularMatches = popularCities
-      .map((city) => {
-        const label = `${city.name}, ${city.region}, ${city.country}`;
-        const normalizedLabel = normalize(label);
-        const normalizedName = normalize(city.name);
-        let score = 0;
-        if (normalizedName.startsWith(normalizedQuery)) score += 2;
-        if (normalizedLabel.startsWith(normalizedQuery)) score += 1.5;
-        if (normalizedLabel.includes(normalizedQuery)) score += 1;
-        return {
-          display_name: label,
-          name: city.name,
-          lat: city.lat,
-          lon: city.lon,
-          boundingbox: null,
-          place_rank: 16,
-          type: 'city',
-          class: 'place',
-          importance: 1,
-          score: score ? score + 5 : 0,
-        };
-      })
-      .filter((item) => item.score > 0);
-
     const results = [...(data ?? []), ...maptilerData]
       .map((item: any) => {
         const name = item.name ?? item.address?.road ?? '';
         const label = item.display_name ?? '';
+        const cityName = getCityName(item, cityOnly);
+        const countryName = getCountryName(item, cityOnly);
+        const cityLabel = cityName && countryName ? `${cityName}, ${countryName}` : null;
+        const displayLabel = cityOnly && cityLabel ? cityLabel : label;
         const normalizedName = normalize(name);
-        const normalizedLabel = normalize(label);
+        const normalizedLabel = normalize(displayLabel);
         const importance = Number(item.importance ?? 0);
-        const labelHasLatin = /[a-z]/i.test(label);
+        const labelHasLatin = /[a-z]/i.test(displayLabel);
         const primaryToken = normalizedLabel.split(' ')[0] ?? '';
 
         let score = importance;
@@ -160,8 +182,8 @@ export async function GET(req: Request) {
         if (isStreetQuery && item.class === 'place') score -= 0.4;
 
         return {
-          display_name: label,
-          name,
+          display_name: displayLabel,
+          name: cityOnly && cityName ? cityName : name,
           lat: parseFloat(item.lat),
           lon: parseFloat(item.lon),
           boundingbox: item.boundingbox ?? null,
@@ -170,41 +192,36 @@ export async function GET(req: Request) {
           class: item.class ?? null,
           importance,
           score,
+          address: item.address ?? null,
+          country: item.country ?? null,
+          osm_id: item.osm_id ?? null,
+          osm_type: item.osm_type ?? null,
+          place_id: item.place_id ?? null,
+          city_name: cityName ?? null,
+          country_name: countryName ?? null,
         };
       })
       .sort((a: any, b: any) => b.score - a.score);
 
-    const merged = [...popularMatches, ...results];
-    const placeResults = merged.filter((item: any) => item.class === 'place');
-    const cityResults = placeResults.filter((item: any) => cityTypes.has(item.type));
+    const merged = [...results];
+    const cityResults = merged.filter((item: any) => item.city_name && item.country_name);
 
     let filtered = merged;
     if (cityOnly) {
-      filtered = cityResults.length ? cityResults : placeResults;
+      filtered = cityResults;
     }
 
-    if (cityOnly && !filtered.length) {
-      const firstChar = normalizedQuery[0] ?? '';
-      filtered = popularCities
-        .filter((city) => normalize(city.name).startsWith(firstChar))
-        .slice(0, 3)
-        .map((city) => ({
-          display_name: `${city.name}, ${city.region}, ${city.country}`,
-          name: city.name,
-          lat: city.lat,
-          lon: city.lon,
-          boundingbox: null,
-          place_rank: 16,
-          type: 'city',
-          class: 'place',
-          importance: 1,
-          score: 4,
-        }));
+    if (cityOnly) {
+      filtered = cityResults;
     }
 
     const unique = new Map<string, any>();
     for (const item of filtered) {
-      const key = `${item.lat}-${item.lon}-${item.display_name}`;
+      const cityName = item.city_name;
+      const countryName = item.country_name;
+      const key = cityOnly
+        ? `${normalize(cityName ?? '')}|${normalize(countryName ?? '')}`
+        : `${item.lat}-${item.lon}-${item.display_name}`;
       if (!unique.has(key)) unique.set(key, item);
     }
     const finalResults = Array.from(unique.values()).slice(0, 12);
