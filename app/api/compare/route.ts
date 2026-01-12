@@ -157,7 +157,8 @@ const searchWikidataCity = async (city: string, country?: string | null) => {
           mwapi:limit "10".
           ?item wikibase:apiOutputItem mwapi:item.
         }
-        ?item wdt:P31/wdt:P279* wd:Q515.
+        ?item wdt:P31/wdt:P279* ?placeType.
+        VALUES ?placeType { wd:Q515 wd:Q15284 }
         ${countryFilter ? `?item wdt:P17 wd:${countryFilter}.` : ''}
         OPTIONAL { ?item wdt:P17 ?country. }
         SERVICE wikibase:label { bd:serviceParam wikibase:language "es,en". }
@@ -207,20 +208,84 @@ const searchWikidataCity = async (city: string, country?: string | null) => {
   return null;
 };
 
+const searchWikidataCityByCoords = async (params: {
+  lat?: number | null;
+  lon?: number | null;
+  city?: string | null;
+  country?: string | null;
+}) => {
+  const { lat, lon, city, country } = params;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const countryQid = country ? await searchWikidataCountryQid(country) : null;
+  const query = `
+    SELECT ?place ?placeLabel ?countryLabel ?dist WHERE {
+      SERVICE wikibase:around {
+        ?place wdt:P625 ?location.
+        bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral.
+        bd:serviceParam wikibase:radius "50".
+        bd:serviceParam wikibase:distance ?dist.
+      }
+      ?place wdt:P31/wdt:P279* ?placeType.
+      VALUES ?placeType { wd:Q515 wd:Q15284 }
+      ${countryQid ? `?place wdt:P17 wd:${countryQid}.` : ''}
+      OPTIONAL { ?place wdt:P17 ?country. }
+      SERVICE wikibase:label { bd:serviceParam wikibase:language "es,en". }
+    }
+    ORDER BY ?dist
+    LIMIT 15
+  `;
+  const url = `https://query.wikidata.org/sparql?format=json&query=${encodeURIComponent(query)}`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'GeoAIAssistant/1.0',
+        Accept: 'application/sparql-results+json',
+      },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const bindings = data?.results?.bindings ?? [];
+    if (!bindings.length) return null;
+    const candidates = bindings.map((binding: any) => ({
+      qid: binding.place?.value?.split('/').pop() ?? null,
+      label: binding.placeLabel?.value ?? '',
+      countryLabel: binding.countryLabel?.value ?? '',
+    }));
+    let filtered = candidates;
+    if (country && !countryQid) {
+      filtered = candidates.filter((item) => labelMatches(item.countryLabel, country));
+      if (!filtered.length) return null;
+    }
+    if (city) {
+      const cityMatches = filtered.filter((item) => labelMatches(item.label, city));
+      if (cityMatches.length) return cityMatches[0].qid ?? null;
+    }
+    return filtered[0]?.qid ?? null;
+  } catch {
+    return null;
+  }
+};
+
 const fetchCityFacts = async (params: {
   label?: string | null;
   city?: string | null;
   country?: string | null;
+  lat?: number | null;
+  lon?: number | null;
 }) => {
   const label = params.label ?? null;
   const city = params.city ?? null;
   const country = params.country ?? null;
+  const lat = params.lat ?? null;
+  const lon = params.lon ?? null;
   const parsedLabel = label ? parseCityCountry(label) : { city: null, country: null };
   const searchCity = city || parsedLabel.city;
   const searchCountry = country || parsedLabel.country;
 
   if (!searchCity) return null;
-  const qid = await searchWikidataCity(searchCity, searchCountry);
+  const qid =
+    (await searchWikidataCity(searchCity, searchCountry)) ??
+    (await searchWikidataCityByCoords({ lat, lon, city: searchCity, country: searchCountry }));
   if (!qid) return null;
 
   const query = `
@@ -231,13 +296,13 @@ const fetchCityFacts = async (params: {
         OPTIONAL { ?popStmt pq:P585 ?populationTime. }
       }
       OPTIONAL {
-        wd:${qid} p:P1539 ?maleStmt.
-        ?maleStmt ps:P1539 ?male.
+        wd:${qid} p:P1540 ?maleStmt.
+        ?maleStmt ps:P1540 ?male.
         OPTIONAL { ?maleStmt pq:P585 ?maleTime. }
       }
       OPTIONAL {
-        wd:${qid} p:P1540 ?femaleStmt.
-        ?femaleStmt ps:P1540 ?female.
+        wd:${qid} p:P1539 ?femaleStmt.
+        ?femaleStmt ps:P1539 ?female.
         OPTIONAL { ?femaleStmt pq:P585 ?femaleTime. }
       }
       OPTIONAL {
@@ -418,6 +483,8 @@ export async function POST(req: Request) {
           label: name,
           city: cityName,
           country: countryName,
+          lat,
+          lon,
         }).catch(() => null),
         (async () => {
           const token = process.env.NEXT_PUBLIC_AQICN_TOKEN;
@@ -447,6 +514,8 @@ export async function POST(req: Request) {
         flagUrl: facts?.flagUrl ?? null,
         aqi: air,
         risk: riesgo?.risk_level ?? null,
+        riskNote: riesgo?.scale_note ?? null,
+        riskSource: riesgo?.source ?? null,
         urban: urban
           ? {
               source: urban.source ?? null,

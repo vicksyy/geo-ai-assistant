@@ -55,16 +55,45 @@ export async function GET(req: Request) {
     return "Muy alto";
   };
 
+  const fetchWithTimeout = async (url: string, timeoutMs = 6000) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "GeoAIAssistant/1.0",
+          Accept: "application/json",
+        },
+      });
+      const text = await res.text();
+      return { ok: res.ok, status: res.status, text };
+    } catch (err) {
+      return { ok: false, status: 0, text: "", error: err };
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
   try {
     const url = buildUrl();
-    const res = await fetch(url);
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: "No se pudo consultar Copernicus" },
-        { status: 502 }
-      );
+    const response = await fetchWithTimeout(url);
+    if (!response.ok) {
+      return NextResponse.json({
+        source: "Copernicus GloFAS WMS",
+        method: "GetFeatureInfo",
+        layer: COPERNICUS_LAYER,
+        value: null,
+        risk_level: "Desconocido",
+        scale_note: "Indice relativo, interpretacion aproximada",
+        warning:
+          response.status > 0
+            ? `HTTP ${response.status}`
+            : "No se pudo consultar Copernicus",
+      });
     }
-    const text = await res.text();
+
+    const text = response.text ?? "";
     let json: any = null;
     try {
       json = JSON.parse(text);
@@ -72,7 +101,8 @@ export async function GET(req: Request) {
       json = null;
     }
 
-    const value = extractNumeric(json, text);
+    let value = extractNumeric(json, text);
+    if (value !== null && value < 0) value = null;
 
     return NextResponse.json({
       source: "Copernicus GloFAS WMS",
@@ -84,9 +114,14 @@ export async function GET(req: Request) {
     });
   } catch (err) {
     console.error(err);
-    return NextResponse.json(
-      { error: "Error al consultar riesgo de inundacion" },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      source: "Copernicus GloFAS WMS",
+      method: "GetFeatureInfo",
+      layer: COPERNICUS_LAYER,
+      value: null,
+      risk_level: "Desconocido",
+      scale_note: "Indice relativo, interpretacion aproximada",
+      warning: "Error al consultar riesgo de inundacion",
+    });
   }
 }

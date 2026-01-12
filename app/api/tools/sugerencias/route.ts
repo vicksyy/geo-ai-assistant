@@ -154,6 +154,14 @@ export async function GET(req: Request) {
       'region',
     ]);
     const cityTypes = new Set(['city', 'town', 'village', 'municipality', 'locality']);
+    const compareCityTypes = new Set(['city', 'municipality']);
+    const isCompareCity = (item: any) => {
+      if (!item) return false;
+      if (compareCityTypes.has(item.type)) return true;
+      if (item.type !== 'administrative') return false;
+      const address = item.address ?? {};
+      return Boolean(address.municipality || address.city);
+    };
     const isStreetQuery = /(calle|avenida|av\.|av |carrer|paseo|plaza|ramblas|rambla|pasaje|trav|travesia|camino)/i.test(
       query
     );
@@ -204,13 +212,11 @@ export async function GET(req: Request) {
       .sort((a: any, b: any) => b.score - a.score);
 
     const merged = [...results];
-    const cityResults = merged.filter((item: any) => item.city_name && item.country_name);
+    const cityResults = merged.filter(
+      (item: any) => item.city_name && item.country_name && isCompareCity(item)
+    );
 
     let filtered = merged;
-    if (cityOnly) {
-      filtered = cityResults;
-    }
-
     if (cityOnly) {
       filtered = cityResults;
     }
