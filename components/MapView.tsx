@@ -42,6 +42,16 @@ export default function MapView({ coordenadas, onMapClick, onLocationResolved, l
   const aqiStationsRef = useRef<{ lat: number; lon: number; aqi: number }[]>([]);
   const aqiFetchBoundsRef = useRef<any>(null);
   const aqiLabelsLayerRef = useRef<any>(null);
+  const satelliteLabelsLayerRef = useRef<any>(null);
+  const sheltersLayerRef = useRef<any>(null);
+  const sheltersFetchBoundsRef = useRef<any>(null);
+  const sheltersAbortRef = useRef<AbortController | null>(null);
+  const sheltersDebounceRef = useRef<number | null>(null);
+  const sheltersLoadingSinceRef = useRef<number | null>(null);
+  const sheltersLoadingTimeoutRef = useRef<number | null>(null);
+  const sheltersRequestIdRef = useRef(0);
+  const sheltersPendingRequestRef = useRef<number | null>(null);
+  const zoomHandlerRef = useRef<(() => void) | null>(null);
   const icaStationsRef = useRef<{ lat: number; lon: number; indice: number }[]>([]);
   const icaUpdatedAtRef = useRef<number | null>(null);
   const aqiFrameRef = useRef<number | null>(null);
@@ -77,19 +87,137 @@ export default function MapView({ coordenadas, onMapClick, onLocationResolved, l
     return placeTypes.has(type);
   };
 
+  type SelectionScope = 'country' | 'region' | 'city' | 'district' | 'street';
+
+  const getSelectionScope = (mapZoom: number): SelectionScope => {
+    if (mapZoom <= 5) return 'country';
+    if (mapZoom <= 7) return 'region';
+    if (mapZoom <= 10) return 'city';
+    if (mapZoom <= 12) return 'district';
+    return 'street';
+  };
+
+  const getReverseZoom = (mapZoom: number): number => {
+    if (mapZoom <= 5) return 3;
+    if (mapZoom <= 7) return 6;
+    if (mapZoom <= 10) return 10;
+    if (mapZoom <= 12) return 14;
+    return 18;
+  };
+
+  const pickFirst = (...values: Array<string | null | undefined>) =>
+    values.find((value) => value && value.length > 0) ?? null;
+
+  const buildStreetLabel = (address: any) => {
+    if (!address) return null;
+    const streetOptions = [
+      address.road,
+      address.pedestrian,
+      address.footway,
+      address.path,
+      address.cycleway,
+      address.residential,
+      address.square,
+      address.neighbourhood,
+      address.neighborhood,
+      address.suburb,
+      address.quarter,
+    ];
+    const areaOptions = [
+      address.suburb,
+      address.neighbourhood,
+      address.neighborhood,
+      address.borough,
+      address.city_district,
+      address.quarter,
+    ];
+    const cityOptions = [
+      address.city,
+      address.town,
+      address.village,
+      address.municipality,
+      address.county,
+      address.state,
+    ];
+    const street = pickFirst(...streetOptions);
+    const area = pickFirst(...areaOptions);
+    const city = pickFirst(...cityOptions);
+    const parts = [];
+    if (street) parts.push(street);
+    if (address.house_number) parts.push(address.house_number);
+    if (area) parts.push(area);
+    if (city) parts.push(city);
+    const label = parts.join(', ').trim();
+    return label.length ? label : null;
+  };
+
+  const buildLabelFromAddress = (
+    address: any,
+    displayName: string | null,
+    scope: SelectionScope
+  ) => {
+    if (!address) return displayName ?? null;
+    const country = pickFirst(address.country);
+    const region = pickFirst(
+      address.state,
+      address.region,
+      address.province,
+      address.county
+    );
+    const city = pickFirst(
+      address.city,
+      address.town,
+      address.village,
+      address.municipality,
+      address.county,
+      address.state
+    );
+    const district = pickFirst(
+      address.suburb,
+      address.neighbourhood,
+      address.neighborhood,
+      address.borough,
+      address.city_district,
+      address.quarter,
+      address.district
+    );
+
+    if (scope === 'street') {
+      return buildStreetLabel(address) || displayName || city || region || country;
+    }
+    if (scope === 'district') {
+      return district || city || region || country || displayName;
+    }
+    if (scope === 'city') {
+      return city || region || country || displayName;
+    }
+    if (scope === 'region') {
+      return region || city || country || displayName;
+    }
+    return country || region || city || displayName;
+  };
+
   const bindMarkerPopup = async (
     coords: { lat: number; lon: number },
     labelOverride?: string | null,
-    isPlace = false
+    isPlace = false,
+    mapZoom?: number
   ) => {
     if (!mapRef.current || !markerRef.current) return;
+
+    const resolvedMapZoom = Number.isFinite(mapZoom)
+      ? (mapZoom as number)
+      : mapRef.current?.getZoom?.() ?? 18;
+    const scope = getSelectionScope(resolvedMapZoom);
+    const reverseZoom = getReverseZoom(resolvedMapZoom);
+    const reportIsPlace = isPlace || scope !== 'street';
 
     let streetName = '';
     let streetLabel = labelOverride ?? 'Ubicación seleccionada';
 
     if (!labelOverride) {
       try {
-        const url = `/api/tools/buscarCoordenadas?lat=${coords.lat}&lon=${coords.lon}&zoom=18`;
+        const url = `/api/tools/buscarCoordenadas?lat=${coords.lat}&lon=${coords.lon}&zoom=${reverseZoom}`;
         const res = await fetch(url);
         if (!res.ok) {
           return;
@@ -98,43 +226,15 @@ export default function MapView({ coordenadas, onMapClick, onLocationResolved, l
 
         const address = data.address;
         if (address) {
-          const streetOptions = [
-            address.road,
-            address.pedestrian,
-            address.footway,
-            address.path,
-            address.cycleway,
-            address.residential,
-            address.square,
-            address.neighbourhood,
-            address.suburb,
-            address.quarter,
-          ];
-          const areaOptions = [
-            address.suburb,
-            address.neighbourhood,
-            address.borough,
-            address.city_district,
-            address.quarter,
-          ];
-          const cityOptions = [
-            address.city,
-            address.town,
-            address.village,
-            address.municipality,
-            address.county,
-            address.state,
-          ];
-          const street = streetOptions.find(Boolean);
-          const area = areaOptions.find(Boolean);
-          const city = cityOptions.find(Boolean);
-          const parts = [];
-          if (street) parts.push(street);
-          if (address.house_number) parts.push(address.house_number);
-          if (area) parts.push(area);
-          if (city) parts.push(city);
-          streetName = parts.join(', ');
-          if (streetName) streetLabel = streetName;
+          const labelFromAddress = buildLabelFromAddress(
+            address,
+            data?.display_name ?? null,
+            scope
+          );
+          if (labelFromAddress) {
+            streetName = labelFromAddress;
+            streetLabel = labelFromAddress;
+          }
         } else if (data?.display_name) {
           streetLabel = data.display_name;
         }
@@ -171,7 +271,7 @@ export default function MapView({ coordenadas, onMapClick, onLocationResolved, l
             6
           )}, ${coords.lon.toFixed(6)}</div>
           <div style="margin-top:10px; display:flex; justify-content:center;">
-            <button class="report-btn" onclick="generarInforme(${coords.lat}, ${coords.lon}, '${reportLabel}', ${isPlace ? 'true' : 'false'})">Generar Informe</button>
+            <button class="report-btn" onclick="generarInforme(${coords.lat}, ${coords.lon}, '${reportLabel}', ${reportIsPlace ? 'true' : 'false'})">Generar Informe</button>
           </div>
         </div>`,
         popupOptions
@@ -213,6 +313,8 @@ export default function MapView({ coordenadas, onMapClick, onLocationResolved, l
     };
   };
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [sheltersLoading, setSheltersLoading] = useState(false);
+  const [mapZoom, setMapZoom] = useState<number | null>(null);
   const [informe, setInforme] = useState<string | null>(null);
   const [loadingInforme, setLoadingInforme] = useState(false);
   const [mostrarInforme, setMostrarInforme] = useState(false);
@@ -440,7 +542,10 @@ export default function MapView({ coordenadas, onMapClick, onLocationResolved, l
       });
     }
 
-    await bindMarkerPopup(coords, label ?? null, isPlace);
+    const selectionZoom = Number.isFinite(zoom)
+      ? (zoom as number)
+      : mapRef.current?.getZoom?.();
+    await bindMarkerPopup(coords, label ?? null, isPlace, selectionZoom);
   };
 
   const setupLabelLayers = async (L: any, map: any) => {
@@ -529,6 +634,10 @@ export default function MapView({ coordenadas, onMapClick, onLocationResolved, l
           zoomControl: false,
         });
         mapRef.current = map;
+        const updateZoom = () => setMapZoom(map.getZoom());
+        zoomHandlerRef.current = updateZoom;
+        updateZoom();
+        map.on('zoomend', updateZoom);
 
         const { baseLayers, overlayLayers } = buildLayers(L);
         layersRef.current = { baseLayers, overlayLayers };
@@ -595,7 +704,13 @@ export default function MapView({ coordenadas, onMapClick, onLocationResolved, l
     })();
 
     return () => {
-      if (mapRef.current) mapRef.current.remove();
+      if (mapRef.current) {
+        if (zoomHandlerRef.current) {
+          mapRef.current.off('zoomend', zoomHandlerRef.current);
+          zoomHandlerRef.current = null;
+        }
+        mapRef.current.remove();
+      }
     };
   }, []);
 
@@ -630,6 +745,233 @@ export default function MapView({ coordenadas, onMapClick, onLocationResolved, l
 
     activeOverlayLayerIdsRef.current = nextOverlays;
   }, [layerState]);
+
+  useEffect(() => {
+    if (!mapRef.current || !layerState) return;
+    const map = mapRef.current;
+    const shouldShow = layerState.baseId === 'satellite';
+    const L = require('leaflet');
+
+    if (shouldShow) {
+      if (!satelliteLabelsLayerRef.current) {
+        satelliteLabelsLayerRef.current = L.tileLayer(
+          'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}.png',
+          {
+            attribution: '© OpenStreetMap contributors, © CARTO',
+            opacity: 0.9,
+            maxZoom: 19,
+            zIndex: 450,
+            className: 'satellite-labels',
+          }
+        );
+      }
+      if (!map.hasLayer(satelliteLabelsLayerRef.current)) {
+        satelliteLabelsLayerRef.current.addTo(map);
+      }
+    } else if (satelliteLabelsLayerRef.current && map.hasLayer(satelliteLabelsLayerRef.current)) {
+      map.removeLayer(satelliteLabelsLayerRef.current);
+    }
+
+    return () => {
+      if (satelliteLabelsLayerRef.current && map.hasLayer(satelliteLabelsLayerRef.current)) {
+        map.removeLayer(satelliteLabelsLayerRef.current);
+      }
+    };
+  }, [layerState?.baseId]);
+
+  useEffect(() => {
+    if (!mapRef.current || !layerState) return;
+    const map = mapRef.current;
+    const L = require('leaflet');
+    const shouldShow = layerState.overlays?.includes('refugios');
+
+    const clearLayer = () => {
+      if (sheltersLayerRef.current?.clearLayers) sheltersLayerRef.current.clearLayers();
+    };
+
+    const startLoading = () => {
+      if (!sheltersLoadingSinceRef.current) {
+        sheltersLoadingSinceRef.current = Date.now();
+        setSheltersLoading(true);
+      }
+    };
+
+    const stopLoading = () => {
+      if (sheltersLoadingTimeoutRef.current) {
+        window.clearTimeout(sheltersLoadingTimeoutRef.current);
+        sheltersLoadingTimeoutRef.current = null;
+      }
+      sheltersLoadingSinceRef.current = null;
+      setSheltersLoading(false);
+    };
+
+    const removeLayer = () => {
+      if (sheltersLayerRef.current && map.hasLayer(sheltersLayerRef.current)) {
+        map.removeLayer(sheltersLayerRef.current);
+      }
+    };
+
+    if (!shouldShow) {
+      clearLayer();
+      removeLayer();
+      if (sheltersAbortRef.current) {
+        sheltersAbortRef.current.abort();
+        sheltersAbortRef.current = null;
+      }
+      sheltersFetchBoundsRef.current = null;
+      stopLoading();
+      return;
+    }
+
+    if (!sheltersLayerRef.current) {
+      sheltersLayerRef.current = L.layerGroup();
+    }
+    if (!map.hasLayer(sheltersLayerRef.current)) {
+      sheltersLayerRef.current.addTo(map);
+    }
+
+    const safe = (value: string) =>
+      value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    const fetchShelters = async (requestId: number) => {
+      if (!mapRef.current || !sheltersLayerRef.current) return;
+      const zoom = map.getZoom();
+      if (zoom <= 9) {
+        if (sheltersAbortRef.current) {
+          sheltersAbortRef.current.abort();
+          sheltersAbortRef.current = null;
+        }
+        sheltersPendingRequestRef.current = null;
+        if (requestId === sheltersRequestIdRef.current) {
+          stopLoading();
+        }
+        return;
+      }
+
+      const bounds = map.getBounds();
+      const cached = sheltersFetchBoundsRef.current;
+      if (
+        cached &&
+        cached.zoom === zoom &&
+        cached.bounds?.contains &&
+        cached.bounds.contains(bounds)
+      ) {
+        if (requestId === sheltersRequestIdRef.current && !sheltersPendingRequestRef.current) {
+          stopLoading();
+        }
+        return;
+      }
+
+      if (sheltersAbortRef.current) sheltersAbortRef.current.abort();
+      const controller = new AbortController();
+      sheltersAbortRef.current = controller;
+
+      const sw = bounds.getSouthWest();
+      const ne = bounds.getNorthEast();
+      const url = `/api/tools/refugios?bbox=${sw.lat},${sw.lng},${ne.lat},${ne.lng}`;
+
+      try {
+        startLoading();
+        const res = await fetch(url, { signal: controller.signal });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!Array.isArray(data?.items)) return;
+
+        const items = data.items.slice(0, 800);
+        clearLayer();
+        items.forEach((item: any) => {
+          const lat = Number(item.lat);
+          const lon = Number(item.lon);
+          if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+          const category = item.category ?? 'amenity';
+          const color =
+            category === 'emergency' ? '#ef4444' : category === 'bunker' ? '#334155' : '#f59e0b';
+          const marker = L.circleMarker([lat, lon], {
+            radius: 5,
+            color: '#000000',
+            weight: 1,
+            fillColor: color,
+            fillOpacity: 0.85,
+          });
+          const name = item.name ? safe(item.name) : 'Refugio';
+          const typeLabel = item.typeLabel ? safe(item.typeLabel) : null;
+          marker.bindPopup(
+            `<div class="popup-content">
+              <div class="popup-title">${name}</div>
+              ${typeLabel ? `<div class="popup-subtitle">${typeLabel}</div>` : ''}
+            </div>`
+          );
+          sheltersLayerRef.current.addLayer(marker);
+        });
+        sheltersFetchBoundsRef.current = { bounds, zoom };
+      } catch (err) {
+        if ((err as any).name !== 'AbortError') {
+          console.error('Error cargando refugios', err);
+        }
+      } finally {
+        if (requestId === sheltersRequestIdRef.current && !sheltersPendingRequestRef.current) {
+          const startedAt = sheltersLoadingSinceRef.current ?? Date.now();
+          const elapsed = Date.now() - startedAt;
+          const minVisible = 300;
+          if (elapsed >= minVisible) {
+            stopLoading();
+          } else {
+            sheltersLoadingTimeoutRef.current = window.setTimeout(() => {
+              stopLoading();
+            }, minVisible - elapsed);
+          }
+        }
+      }
+    };
+
+    const scheduleFetch = () => {
+      const zoom = map.getZoom();
+      if (zoom <= 9) {
+        if (sheltersAbortRef.current) {
+          sheltersAbortRef.current.abort();
+          sheltersAbortRef.current = null;
+        }
+        sheltersPendingRequestRef.current = null;
+        stopLoading();
+        return;
+      }
+      startLoading();
+      const requestId = ++sheltersRequestIdRef.current;
+      sheltersPendingRequestRef.current = requestId;
+      if (sheltersDebounceRef.current) {
+        window.clearTimeout(sheltersDebounceRef.current);
+      }
+      sheltersDebounceRef.current = window.setTimeout(() => {
+        sheltersDebounceRef.current = null;
+        sheltersPendingRequestRef.current = null;
+        fetchShelters(requestId);
+      }, 350);
+    };
+
+    map.on('moveend', scheduleFetch);
+    map.on('zoomend', scheduleFetch);
+    scheduleFetch();
+
+    return () => {
+      map.off('moveend', scheduleFetch);
+      map.off('zoomend', scheduleFetch);
+      if (sheltersDebounceRef.current) {
+        window.clearTimeout(sheltersDebounceRef.current);
+        sheltersDebounceRef.current = null;
+      }
+      if (sheltersAbortRef.current) {
+        sheltersAbortRef.current.abort();
+        sheltersAbortRef.current = null;
+      }
+      removeLayer();
+      stopLoading();
+    };
+  }, [layerState?.overlays]);
 
   useEffect(() => {
     if (!mapRef.current || !layerState) return;
@@ -920,7 +1262,12 @@ export default function MapView({ coordenadas, onMapClick, onLocationResolved, l
 
       setCoords({ lat: coordenadas.lat, lon: coordenadas.lon });
       const label = selectedPlace?.label ?? null;
-      bindMarkerPopup({ lat: coordenadas.lat, lon: coordenadas.lon }, label, isPlaceSelection(selectedPlace));
+      bindMarkerPopup(
+        { lat: coordenadas.lat, lon: coordenadas.lon },
+        label,
+        isPlaceSelection(selectedPlace),
+        mapRef.current?.getZoom?.()
+      );
     }
   }, [coordenadas, selectedPlace]);
 
@@ -929,6 +1276,21 @@ return (
 
     {/* MAPA */}
     <div id="map" className="h-full w-full" />
+
+    {layerState?.overlays?.includes('refugios') && (
+      <>
+        {sheltersLoading && (
+          <div className="absolute bottom-6 left-1/2 z-[1200] -translate-x-1/2 rounded-full bg-black/70 px-4 py-2 text-xs font-medium text-white shadow-lg backdrop-blur">
+            Cargando refugios…
+          </div>
+        )}
+        {(mapZoom ?? 0) <= 9 && (
+          <div className="absolute bottom-6 left-1/2 z-[1200] -translate-x-1/2 rounded-full bg-black/60 px-4 py-2 text-xs font-medium text-white shadow-lg backdrop-blur">
+            Acerca el zoom para ver refugios
+          </div>
+        )}
+      </>
+    )}
 
     {layerState?.baseId === 'ica' && (
       <>

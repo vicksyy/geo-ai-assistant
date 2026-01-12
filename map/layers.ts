@@ -1,5 +1,5 @@
 export type BaseLayerId = 'osm' | 'topo' | 'satellite' | 'ign' | 'ica';
-export type OverlayLayerId = 'railways' | 'transport' | 'inundacion';
+export type OverlayLayerId = 'railways' | 'transport' | 'inundacion' | 'refugios';
 
 export const baseLayerOptions: {
   id: BaseLayerId;

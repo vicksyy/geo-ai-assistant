@@ -77,6 +77,11 @@ export default function LeftSidebar({
       preview:
         'https://ows.globalfloods.eu/glofas-ows/ows.py?service=WMS&request=GetMap&version=1.1.1&layers=FloodHazard100y&styles=&bbox=-6,36,3,44&srs=EPSG:4326&width=256&height=256&format=image/png&transparent=true',
     },
+    {
+      id: 'refugios' as OverlayLayerId,
+      label: 'Refugios',
+      preview: 'https://a.tile.openstreetmap.org/6/32/21.png',
+    },
   ];
 
   return (
