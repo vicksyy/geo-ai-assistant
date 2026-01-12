@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import type { ChatCompletionTool } from 'openai/resources/chat/completions';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -84,7 +85,7 @@ Empieza el informe con estas dos líneas en texto plano:
 Luego usa exactamente estos subtítulos en el informe y en texto plano: "Descripción de la zona:", "Infraestructura cercana:", "Riesgos relevantes:", "Posibles usos urbanos:", "Recomendación final:", "Fuentes y limitaciones:".
 `;
 
-    const tools = [
+    const tools: ChatCompletionTool[] = [
       {
         type: 'function',
         function: {
@@ -129,7 +130,7 @@ Luego usa exactamente estos subtítulos en el informe y en texto plano: "Descrip
           },
         },
       },
-    ] as const;
+    ];
 
     const callTool = async (name: string, args: Record<string, any>) => {
       if (name === 'buscarCoordenadas') {
@@ -182,6 +183,7 @@ Luego usa exactamente estos subtítulos en el informe y en texto plano: "Descrip
     if (toolCalls.length) {
       messages.push(initial.choices[0].message);
       for (const call of toolCalls) {
+        if (call.type !== 'function') continue;
         const args = JSON.parse(call.function.arguments || '{}');
         const result = await callTool(call.function.name, args);
         messages.push({
@@ -193,7 +195,9 @@ Luego usa exactamente estos subtítulos en el informe y en texto plano: "Descrip
     }
 
     const ensureTool = async (name: string) => {
-      const missing = !toolCalls.some((call) => call.function.name === name);
+      const missing = !toolCalls.some(
+        (call) => call.type === 'function' && call.function.name === name
+      );
       if (!missing) return;
       const forced = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
@@ -212,6 +216,7 @@ Luego usa exactamente estos subtítulos en el informe y en texto plano: "Descrip
       if (!forcedCalls.length) return;
       messages.push(forced.choices[0].message);
       for (const call of forcedCalls) {
+        if (call.type !== 'function') continue;
         const args = JSON.parse(call.function.arguments || '{}');
         const result = await callTool(call.function.name, args);
         messages.push({

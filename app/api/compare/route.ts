@@ -123,12 +123,15 @@ const searchWikidataCountryQid = async (country: string) => {
   for (const language of languages) {
     const bindings = await fetchResults(country, language);
     if (!bindings.length) continue;
-    const candidates = bindings.map((binding: any) => ({
-      qid: binding.item?.value?.split('/').pop() ?? null,
-      label: binding.itemLabel?.value ?? '',
-    }));
+    const candidates: Array<{ qid: string | null; label: string }> = bindings.map(
+      (binding: any) => ({
+        qid: binding.item?.value?.split('/').pop() ?? null,
+        label: binding.itemLabel?.value ?? '',
+      })
+    );
     const picked =
-      candidates.find((item) => labelMatches(item.label, country)) ?? candidates[0];
+      candidates.find((item: { label: string }) => labelMatches(item.label, country)) ??
+      candidates[0];
     if (picked?.qid) return picked.qid;
   }
   return null;
@@ -189,18 +192,21 @@ const searchWikidataCity = async (city: string, country?: string | null) => {
         usedFallback = true;
       }
       if (!bindings.length) continue;
-      const candidates = bindings.map((binding: any) => ({
-        qid: binding.item?.value?.split('/').pop() ?? null,
-        label: binding.itemLabel?.value ?? '',
-        countryLabel: binding.countryLabel?.value ?? '',
-      }));
+      const candidates: Array<{ qid: string | null; label: string; countryLabel: string }> =
+        bindings.map((binding: any) => ({
+          qid: binding.item?.value?.split('/').pop() ?? null,
+          label: binding.itemLabel?.value ?? '',
+          countryLabel: binding.countryLabel?.value ?? '',
+        }));
       let filtered = candidates;
       if (country && (!countryQid || usedFallback)) {
-        filtered = candidates.filter((item) => labelMatches(item.countryLabel, country));
+        filtered = candidates.filter((item: { countryLabel: string }) =>
+          labelMatches(item.countryLabel, country)
+        );
       }
       if (country && filtered.length === 0) continue;
       const picked =
-        filtered.find((item) => labelMatches(item.label, city)) ??
+        filtered.find((item: { label: string }) => labelMatches(item.label, city)) ??
         filtered[0];
       if (picked?.qid) return picked.qid;
     }
@@ -246,18 +252,23 @@ const searchWikidataCityByCoords = async (params: {
     const data = await res.json();
     const bindings = data?.results?.bindings ?? [];
     if (!bindings.length) return null;
-    const candidates = bindings.map((binding: any) => ({
-      qid: binding.place?.value?.split('/').pop() ?? null,
-      label: binding.placeLabel?.value ?? '',
-      countryLabel: binding.countryLabel?.value ?? '',
-    }));
+    const candidates: Array<{ qid: string | null; label: string; countryLabel: string }> =
+      bindings.map((binding: any) => ({
+        qid: binding.place?.value?.split('/').pop() ?? null,
+        label: binding.placeLabel?.value ?? '',
+        countryLabel: binding.countryLabel?.value ?? '',
+      }));
     let filtered = candidates;
     if (country && !countryQid) {
-      filtered = candidates.filter((item) => labelMatches(item.countryLabel, country));
+      filtered = candidates.filter((item: { countryLabel: string }) =>
+        labelMatches(item.countryLabel, country)
+      );
       if (!filtered.length) return null;
     }
     if (city) {
-      const cityMatches = filtered.filter((item) => labelMatches(item.label, city));
+      const cityMatches = filtered.filter((item: { label: string }) =>
+        labelMatches(item.label, city)
+      );
       if (cityMatches.length) return cityMatches[0].qid ?? null;
     }
     return filtered[0]?.qid ?? null;
