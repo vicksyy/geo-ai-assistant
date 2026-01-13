@@ -23,6 +23,8 @@ export default function SearchInput({ onResult }: SearchInputProps) {
       display_name: string;
       lat: number;
       lon: number;
+      place_id?: number | string;
+      osm_id?: number | string;
       class?: string | null;
       type?: string | null;
     }[]
@@ -137,6 +139,8 @@ export default function SearchInput({ onResult }: SearchInputProps) {
         const normalize = (value: string) =>
           value
             .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
             .replace(/[^\p{L}\p{N}]+/gu, ' ')
             .replace(/\s+/g, ' ')
             .trim();
@@ -231,8 +235,14 @@ export default function SearchInput({ onResult }: SearchInputProps) {
       {showSuggestions && suggestions.length > 0 && (
         <div className="absolute left-0 right-0 top-full z-[1200] mt-2 rounded-xl border border-border bg-popover/95 shadow-xl backdrop-blur">
           <ul className="max-h-64 overflow-auto py-1 text-sm text-foreground">
-            {suggestions.map((item) => (
-              <li key={`${item.lat}-${item.lon}`}>
+            {suggestions.map((item, index) => (
+              <li
+                key={
+                  item.place_id ??
+                  item.osm_id ??
+                  `${item.lat}-${item.lon}-${item.display_name ?? ''}-${index}`
+                }
+              >
                 <button
                   type="button"
                   className="w-full px-3 py-2 text-left hover:bg-accent"
