@@ -7,15 +7,13 @@ export type OverlayLayerId =
   | 'airtemp'
   | 'clouds'
   | 'precipitation'
-  | 'pressure'
-  | 'wind';
+  | 'pressure';
 
 const openWeatherKey = process.env.NEXT_PUBLIC_OPENWEATHER_KEY ?? '';
 const openWeatherTempUrl = `https://tile.openweathermap.org/map/temp_new/{z}/{x}/{y}.png?appid=${openWeatherKey}`;
 const openWeatherCloudsUrl = `https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=${openWeatherKey}`;
 const openWeatherPrecipitationUrl = `https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${openWeatherKey}`;
 const openWeatherPressureUrl = `https://tile.openweathermap.org/map/pressure_new/{z}/{x}/{y}.png?appid=${openWeatherKey}`;
-const openWeatherWindUrl = `https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${openWeatherKey}`;
 
 export const baseLayerOptions: {
   id: BaseLayerId;
@@ -68,6 +66,8 @@ export const overlayLayerOptions: {
   transparent?: boolean;
   version?: string;
   styles?: string;
+  opacity?: number;
+  className?: string;
 }[] = [
   {
     id: 'transport',
@@ -104,6 +104,8 @@ export const overlayLayerOptions: {
     url: openWeatherTempUrl,
     attribution: '© OpenWeather',
     maxZoom: 19,
+    opacity: 1,
+    className: 'weather-overlay weather-temp',
   },
   {
     id: 'clouds',
@@ -112,6 +114,8 @@ export const overlayLayerOptions: {
     url: openWeatherCloudsUrl,
     attribution: '© OpenWeather',
     maxZoom: 19,
+    opacity: 1,
+    className: 'weather-overlay weather-clouds',
   },
   {
     id: 'precipitation',
@@ -120,6 +124,8 @@ export const overlayLayerOptions: {
     url: openWeatherPrecipitationUrl,
     attribution: '© OpenWeather',
     maxZoom: 19,
+    opacity: 1,
+    className: 'weather-overlay weather-precip',
   },
   {
     id: 'pressure',
@@ -128,14 +134,8 @@ export const overlayLayerOptions: {
     url: openWeatherPressureUrl,
     attribution: '© OpenWeather',
     maxZoom: 19,
-  },
-  {
-    id: 'wind',
-    label: 'Velocidad del viento (OpenWeather)',
-    kind: 'tile',
-    url: openWeatherWindUrl,
-    attribution: '© OpenWeather',
-    maxZoom: 19,
+    opacity: 1,
+    className: 'weather-overlay weather-pressure',
   },
 ];
 
@@ -170,12 +170,14 @@ export function buildLayers(L: typeof import('leaflet')) {
           version: layer.version ?? '1.3.0',
           attribution: layer.attribution,
           className: layer.id === 'inundacion' ? 'flood-blur' : undefined,
+          opacity: layer.opacity ?? 1,
         });
       } else {
         acc[layer.id] = L.tileLayer(layer.url, {
           attribution: layer.attribution,
           maxZoom: layer.maxZoom,
-          opacity: 0.95,
+          opacity: layer.opacity ?? 0.95,
+          className: layer.className,
         });
       }
       return acc;

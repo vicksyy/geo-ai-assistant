@@ -1,7 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { Layers, Cloud, ArrowLeftRight, History, StickyNote, Sparkles } from 'lucide-react';
+import {
+  Layers,
+  Cloud,
+  ArrowLeftRight,
+  History,
+  StickyNote,
+  Sparkles,
+  Thermometer,
+  Droplets,
+  Gauge,
+  Wind,
+  CloudRain,
+} from 'lucide-react';
 import { BaseLayerId, OverlayLayerId } from '../map/layers';
 import ThemeToggle from './ThemeToggle';
 
@@ -21,7 +33,6 @@ interface LeftSidebarProps {
   onBaseLayerChange: (id: BaseLayerId) => void;
   onOverlayToggle: (id: OverlayLayerId) => void;
   aqiAvailable: boolean;
-  aqicnToken?: string;
   airQualityOn: boolean;
   onAirQualityToggle: () => void;
 }
@@ -42,30 +53,11 @@ export default function LeftSidebar({
   onBaseLayerChange,
   onOverlayToggle,
   aqiAvailable,
-  aqicnToken,
   airQualityOn,
   onAirQualityToggle,
 }: LeftSidebarProps) {
   const [tooltip, setTooltip] = useState<{ name: string; top: number; left: number } | null>(null);
-  const aqiPreview = aqicnToken
-    ? `https://tiles.waqi.info/tiles/usepa-aqi/6/32/21.png?token=${aqicnToken}`
-    : 'https://a.tile.openstreetmap.org/6/32/21.png';
-  const openWeatherKey = process.env.NEXT_PUBLIC_OPENWEATHER_KEY ?? '';
-  const openWeatherPreview = openWeatherKey
-    ? `https://tile.openweathermap.org/map/temp_new/6/32/21.png?appid=${openWeatherKey}`
-    : 'https://a.tile.openstreetmap.org/6/32/21.png';
-  const openWeatherCloudsPreview = openWeatherKey
-    ? `https://tile.openweathermap.org/map/clouds_new/6/32/21.png?appid=${openWeatherKey}`
-    : 'https://a.tile.openstreetmap.org/6/32/21.png';
-  const openWeatherPrecipitationPreview = openWeatherKey
-    ? `https://tile.openweathermap.org/map/precipitation_new/6/32/21.png?appid=${openWeatherKey}`
-    : 'https://a.tile.openstreetmap.org/6/32/21.png';
-  const openWeatherPressurePreview = openWeatherKey
-    ? `https://tile.openweathermap.org/map/pressure_new/6/32/21.png?appid=${openWeatherKey}`
-    : 'https://a.tile.openstreetmap.org/6/32/21.png';
-  const openWeatherWindPreview = openWeatherKey
-    ? `https://tile.openweathermap.org/map/wind_new/6/32/21.png?appid=${openWeatherKey}`
-    : 'https://a.tile.openstreetmap.org/6/32/21.png';
+  const mapPreview = 'https://a.tile.openstreetmap.org/8/128/85.png';
   const mapTypeOptions = [
     {
       id: 'osm' as BaseLayerId,
@@ -101,33 +93,42 @@ export default function LeftSidebar({
     {
       id: 'airtemp' as OverlayLayerId,
       label: 'Temperatura',
-      preview: openWeatherPreview,
+      preview: mapPreview,
+      icon: Thermometer,
+      iconClass: 'text-white',
+      iconBgClass: 'bg-rose-500/90',
     },
     {
       id: 'clouds' as OverlayLayerId,
       label: 'Nubes',
-      preview: openWeatherCloudsPreview,
+      preview: mapPreview,
+      icon: Cloud,
+      iconClass: 'text-white',
+      iconBgClass: 'bg-slate-500/90',
     },
     {
       id: 'precipitation' as OverlayLayerId,
       label: 'Precipitacion',
-      preview: openWeatherPrecipitationPreview,
+      preview: mapPreview,
+      icon: Droplets,
+      iconClass: 'text-white',
+      iconBgClass: 'bg-sky-500/90',
     },
     {
       id: 'pressure' as OverlayLayerId,
       label: 'Presion nivel del mar',
-      preview: openWeatherPressurePreview,
-    },
-    {
-      id: 'wind' as OverlayLayerId,
-      label: 'Velocidad del viento',
-      preview: openWeatherWindPreview,
+      preview: mapPreview,
+      icon: Gauge,
+      iconClass: 'text-white',
+      iconBgClass: 'bg-amber-500/90',
     },
     {
       id: 'inundacion' as OverlayLayerId,
       label: 'Riesgo inundacion (ARPSI)',
-      preview:
-        'https://wms.mapama.gob.es/sig/agua/ZI_ARPSI?service=WMS&request=GetMap&version=1.3.0&layers=NZ.RiskZone&styles=Agua_Zi_ARPSI&crs=CRS:84&bbox=-6,36,3,44&width=256&height=256&format=image/png&transparent=true',
+      preview: mapPreview,
+      icon: CloudRain,
+      iconClass: 'text-white',
+      iconBgClass: 'bg-blue-600/90',
     },
   ];
 
@@ -402,13 +403,16 @@ export default function LeftSidebar({
                   checked={airQualityOn}
                   onChange={onAirQualityToggle}
                 />
-                <div className="h-20 w-full overflow-hidden rounded-lg border border-border/60 bg-muted/30 shadow-sm transition-all peer-checked:border-primary peer-checked:ring-2 peer-checked:ring-primary/30 md:h-14">
+                <div className="relative h-20 w-full overflow-hidden rounded-lg border border-border/60 bg-muted/30 shadow-sm transition-all peer-checked:border-primary peer-checked:ring-2 peer-checked:ring-primary/30 md:h-14">
                   <img
-                    src={aqiPreview}
+                    src={mapPreview}
                     alt="Calidad del aire"
                     className="h-full w-full object-cover"
                     loading="lazy"
                   />
+                  <div className="absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-sky-500/90 text-white shadow-md">
+                    <Wind className="h-5 w-5" />
+                  </div>
                 </div>
                 <span className="text-center text-[11px] text-foreground">Calidad del aire</span>
               </label>
@@ -424,13 +428,18 @@ export default function LeftSidebar({
                     checked={overlayLayerIds.includes(layer.id)}
                     onChange={() => onOverlayToggle(layer.id)}
                   />
-                  <div className="h-20 w-full overflow-hidden rounded-lg border border-border/60 bg-muted/30 shadow-sm transition-all peer-checked:border-primary peer-checked:ring-2 peer-checked:ring-primary/30 md:h-14">
+                  <div className="relative h-20 w-full overflow-hidden rounded-lg border border-border/60 bg-muted/30 shadow-sm transition-all peer-checked:border-primary peer-checked:ring-2 peer-checked:ring-primary/30 md:h-14">
                     <img
                       src={layer.preview}
                       alt={layer.label}
                       className="h-full w-full object-cover"
                       loading="lazy"
                     />
+                    <div
+                      className={`absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full shadow-md ${layer.iconBgClass}`}
+                    >
+                      <layer.icon className={`h-5 w-5 ${layer.iconClass}`} />
+                    </div>
                   </div>
                   <span className="text-center text-[11px] text-foreground">{layer.label}</span>
                 </label>

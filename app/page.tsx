@@ -79,6 +79,14 @@ export default function HomePage() {
     setBaseLayerId(id);
   };
 
+  const weatherLayers: OverlayLayerId[] = [
+    'airtemp',
+    'clouds',
+    'precipitation',
+    'pressure',
+    'inundacion',
+  ];
+
   const handleAirQualityToggle = () => {
     if (!aqiAvailable) return;
     if (airQualityOn) {
@@ -89,6 +97,7 @@ export default function HomePage() {
     if (baseLayerId !== 'ica') {
       lastBaseRef.current = baseLayerId;
     }
+    setOverlayLayerIds((prev) => prev.filter((item) => !weatherLayers.includes(item)));
     setAirQualityOn(true);
     setBaseLayerId('ica');
   };
@@ -112,12 +121,22 @@ export default function HomePage() {
         overlayLayerIds={overlayLayerIds}
         onBaseLayerChange={handleBaseChange}
         onOverlayToggle={(id) =>
-          setOverlayLayerIds((prev) =>
-            prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-          )
+          setOverlayLayerIds((prev) => {
+            const isWeather = weatherLayers.includes(id);
+            const withoutTarget = prev.filter((item) => item !== id);
+            if (prev.includes(id)) return withoutTarget;
+            if (!isWeather) return [...withoutTarget, id];
+            if (airQualityOn) {
+              setAirQualityOn(false);
+              setBaseLayerId(lastBaseRef.current ?? 'osm');
+            }
+            const withoutWeather = withoutTarget.filter(
+              (item) => !weatherLayers.includes(item)
+            );
+            return [...withoutWeather, id];
+          })
         }
         aqiAvailable={aqiAvailable}
-        aqicnToken={aqicnToken}
         airQualityOn={airQualityOn}
         onAirQualityToggle={handleAirQualityToggle}
       />
