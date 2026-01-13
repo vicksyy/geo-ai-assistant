@@ -18,6 +18,7 @@ export default function HomePage() {
     placeType?: string | null;
   } | null>(null);
   const [layersOpen, setLayersOpen] = useState(false);
+  const [weatherOpen, setWeatherOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -33,8 +34,9 @@ export default function HomePage() {
   const aqicnToken = process.env.NEXT_PUBLIC_AQICN_TOKEN ?? '';
   const aqiAvailable = Boolean(aqicnToken);
 
-  const togglePanel = (panel: 'layers' | 'compare' | 'history' | 'save') => {
+  const togglePanel = (panel: 'layers' | 'weather' | 'compare' | 'history' | 'save') => {
     setLayersOpen((prev) => (panel === 'layers' ? !prev : false));
+    setWeatherOpen((prev) => (panel === 'weather' ? !prev : false));
     setCompareOpen((prev) => (panel === 'compare' ? !prev : false));
     setHistoryOpen((prev) => (panel === 'history' ? !prev : false));
     setSaveOpen((prev) => (panel === 'save' ? !prev : false));
@@ -42,6 +44,7 @@ export default function HomePage() {
 
   const closeSidePanels = () => {
     setLayersOpen(false);
+    setWeatherOpen(false);
     setCompareOpen(false);
     setHistoryOpen(false);
     setSaveOpen(false);
@@ -83,6 +86,8 @@ export default function HomePage() {
       <LeftSidebar
         layersOpen={layersOpen}
         onLayersToggle={() => togglePanel('layers')}
+        weatherOpen={weatherOpen}
+        onWeatherToggle={() => togglePanel('weather')}
         onCompareClick={() => togglePanel('compare')}
         onHistoryClick={() => togglePanel('history')}
         onSaveClick={() => togglePanel('save')}

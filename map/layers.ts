@@ -1,8 +1,21 @@
 export type BaseLayerId = 'osm' | 'topo' | 'satellite' | 'ica';
-export type OverlayLayerId = 'railways' | 'transport' | 'inundacion' | 'refugios' | 'airtemp';
+export type OverlayLayerId =
+  | 'railways'
+  | 'transport'
+  | 'inundacion'
+  | 'refugios'
+  | 'airtemp'
+  | 'clouds'
+  | 'precipitation'
+  | 'pressure'
+  | 'wind';
 
 const openWeatherKey = process.env.NEXT_PUBLIC_OPENWEATHER_KEY ?? '';
 const openWeatherTempUrl = `https://tile.openweathermap.org/map/temp_new/{z}/{x}/{y}.png?appid=${openWeatherKey}`;
+const openWeatherCloudsUrl = `https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=${openWeatherKey}`;
+const openWeatherPrecipitationUrl = `https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${openWeatherKey}`;
+const openWeatherPressureUrl = `https://tile.openweathermap.org/map/pressure_new/{z}/{x}/{y}.png?appid=${openWeatherKey}`;
+const openWeatherWindUrl = `https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${openWeatherKey}`;
 
 export const baseLayerOptions: {
   id: BaseLayerId;
@@ -87,6 +100,38 @@ export const overlayLayerOptions: {
     label: 'Temperatura del aire (OpenWeather)',
     kind: 'tile',
     url: openWeatherTempUrl,
+    attribution: '© OpenWeather',
+    maxZoom: 19,
+  },
+  {
+    id: 'clouds',
+    label: 'Nubes (OpenWeather)',
+    kind: 'tile',
+    url: openWeatherCloudsUrl,
+    attribution: '© OpenWeather',
+    maxZoom: 19,
+  },
+  {
+    id: 'precipitation',
+    label: 'Precipitacion (OpenWeather)',
+    kind: 'tile',
+    url: openWeatherPrecipitationUrl,
+    attribution: '© OpenWeather',
+    maxZoom: 19,
+  },
+  {
+    id: 'pressure',
+    label: 'Presion a nivel del mar (OpenWeather)',
+    kind: 'tile',
+    url: openWeatherPressureUrl,
+    attribution: '© OpenWeather',
+    maxZoom: 19,
+  },
+  {
+    id: 'wind',
+    label: 'Velocidad del viento (OpenWeather)',
+    kind: 'tile',
+    url: openWeatherWindUrl,
     attribution: '© OpenWeather',
     maxZoom: 19,
   },

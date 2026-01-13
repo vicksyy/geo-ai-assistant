@@ -1,13 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { Layers, ArrowLeftRight, History, StickyNote } from 'lucide-react';
+import { Layers, Cloud, ArrowLeftRight, History, StickyNote } from 'lucide-react';
 import { BaseLayerId, OverlayLayerId } from '../map/layers';
 import ThemeToggle from './ThemeToggle';
 
 interface LeftSidebarProps {
   layersOpen: boolean;
   onLayersToggle: () => void;
+  weatherOpen: boolean;
+  onWeatherToggle: () => void;
   onCompareClick?: () => void;
   onHistoryClick?: () => void;
   onSaveClick?: () => void;
@@ -24,6 +26,8 @@ interface LeftSidebarProps {
 export default function LeftSidebar({
   layersOpen,
   onLayersToggle,
+  weatherOpen,
+  onWeatherToggle,
   onCompareClick,
   onHistoryClick,
   onSaveClick,
@@ -43,6 +47,18 @@ export default function LeftSidebar({
   const openWeatherKey = process.env.NEXT_PUBLIC_OPENWEATHER_KEY ?? '';
   const openWeatherPreview = openWeatherKey
     ? `https://tile.openweathermap.org/map/temp_new/6/32/21.png?appid=${openWeatherKey}`
+    : 'https://a.tile.openstreetmap.org/6/32/21.png';
+  const openWeatherCloudsPreview = openWeatherKey
+    ? `https://tile.openweathermap.org/map/clouds_new/6/32/21.png?appid=${openWeatherKey}`
+    : 'https://a.tile.openstreetmap.org/6/32/21.png';
+  const openWeatherPrecipitationPreview = openWeatherKey
+    ? `https://tile.openweathermap.org/map/precipitation_new/6/32/21.png?appid=${openWeatherKey}`
+    : 'https://a.tile.openstreetmap.org/6/32/21.png';
+  const openWeatherPressurePreview = openWeatherKey
+    ? `https://tile.openweathermap.org/map/pressure_new/6/32/21.png?appid=${openWeatherKey}`
+    : 'https://a.tile.openstreetmap.org/6/32/21.png';
+  const openWeatherWindPreview = openWeatherKey
+    ? `https://tile.openweathermap.org/map/wind_new/6/32/21.png?appid=${openWeatherKey}`
     : 'https://a.tile.openstreetmap.org/6/32/21.png';
   const mapTypeOptions = [
     {
@@ -70,20 +86,42 @@ export default function LeftSidebar({
       preview: 'https://a.tiles.openrailwaymap.org/standard/6/32/21.png',
     },
     {
-      id: 'inundacion' as OverlayLayerId,
-      label: 'Riesgo inundacion',
-      preview:
-        'https://ows.globalfloods.eu/glofas-ows/ows.py?service=WMS&request=GetMap&version=1.1.1&layers=FloodHazard100y&styles=&bbox=-6,36,3,44&srs=EPSG:4326&width=256&height=256&format=image/png&transparent=true',
+      id: 'refugios' as OverlayLayerId,
+      label: 'Refugios',
+      preview: 'https://a.tile.openstreetmap.org/6/32/21.png',
     },
+  ];
+  const weatherOptions = [
     {
       id: 'airtemp' as OverlayLayerId,
       label: 'Temperatura',
       preview: openWeatherPreview,
     },
     {
-      id: 'refugios' as OverlayLayerId,
-      label: 'Refugios',
-      preview: 'https://a.tile.openstreetmap.org/6/32/21.png',
+      id: 'clouds' as OverlayLayerId,
+      label: 'Nubes',
+      preview: openWeatherCloudsPreview,
+    },
+    {
+      id: 'precipitation' as OverlayLayerId,
+      label: 'Precipitacion',
+      preview: openWeatherPrecipitationPreview,
+    },
+    {
+      id: 'pressure' as OverlayLayerId,
+      label: 'Presion nivel del mar',
+      preview: openWeatherPressurePreview,
+    },
+    {
+      id: 'wind' as OverlayLayerId,
+      label: 'Velocidad del viento',
+      preview: openWeatherWindPreview,
+    },
+    {
+      id: 'inundacion' as OverlayLayerId,
+      label: 'Riesgo inundacion',
+      preview:
+        'https://ows.globalfloods.eu/glofas-ows/ows.py?service=WMS&request=GetMap&version=1.1.1&layers=FloodHazard100y&styles=&bbox=-6,36,3,44&srs=EPSG:4326&width=256&height=256&format=image/png&transparent=true',
     },
   ];
 
@@ -109,6 +147,21 @@ export default function LeftSidebar({
         </button>
 
         <div className="flex-[0.3]" />
+
+        <button
+          type="button"
+          className="w-10 h-10 flex items-center justify-center rounded-lg text-foreground hover:bg-accent transition relative"
+          onClick={onWeatherToggle}
+          onMouseEnter={(e) => {
+            const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+            setTooltip({ name: 'Clima', top: rect.top + rect.height / 2, left: rect.right });
+          }}
+          onMouseLeave={() => setTooltip(null)}
+          aria-expanded={weatherOpen}
+          aria-controls="weather-panel"
+        >
+          <Cloud className="h-5 w-5" />
+        </button>
 
         <button
           type="button"
@@ -237,29 +290,6 @@ export default function LeftSidebar({
                 Detalles
               </p>
               <div className="grid grid-cols-3 gap-3 md:grid-cols-2">
-                <label
-                  className={`flex flex-col items-center gap-2 text-xs leading-snug text-foreground ${
-                    !aqiAvailable ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    disabled={!aqiAvailable}
-                    checked={airQualityOn}
-                    onChange={onAirQualityToggle}
-                  />
-                  <div className="h-20 w-full overflow-hidden rounded-lg border border-border/60 bg-muted/30 shadow-sm transition-all peer-checked:border-primary peer-checked:ring-2 peer-checked:ring-primary/30 md:h-14">
-                    <img
-                      src={aqiPreview}
-                      alt="Calidad del aire"
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  </div>
-                  <span className="text-center text-[11px] text-foreground">Calidad del aire</span>
-                </label>
-
                 {detailOptions.map((layer) => (
                   <label
                     key={layer.id}
@@ -288,6 +318,95 @@ export default function LeftSidebar({
         </div>
       </div>
 
+      <div
+        className={`fixed inset-x-0 top-0 md:inset-auto md:z-[6000] ${
+          weatherOpen
+            ? 'bottom-0 z-[1400] pointer-events-auto'
+            : 'bottom-16 z-[1200] pointer-events-none'
+        }`}
+      >
+        <button
+          type="button"
+          aria-label="Cerrar panel de clima"
+          className={`absolute inset-0 bg-black/50 transition-opacity md:hidden ${
+            weatherOpen ? 'opacity-100' : 'opacity-0'
+          }`}
+          onClick={onWeatherToggle}
+        />
+
+        <div
+          id="weather-panel"
+          className={`fixed left-0 right-0 h-[clamp(320px,45vh,420px)] rounded-t-2xl bg-card border-t border-border shadow-2xl p-4 text-foreground transition-transform duration-300 ease-out md:left-[calc(var(--sidebar-offset)+1rem)] md:top-24 md:bottom-auto md:right-auto md:h-auto md:w-72 md:rounded-xl md:border md:border-border md:transition-none md:p-4 md:h-[clamp(320px,50vh,520px)] ${
+            weatherOpen ? 'bottom-0 translate-y-0 z-[1500]' : 'bottom-16 translate-y-full z-[800] md:translate-y-0'
+          } ${weatherOpen ? 'md:block' : 'md:hidden'}`}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-foreground">Clima</h3>
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={onWeatherToggle}
+              aria-label="Cerrar clima"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="space-y-4 pb-2">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">
+              Capas meteorologicas
+            </p>
+            <div className="grid grid-cols-3 gap-3 md:grid-cols-2">
+              <label
+                className={`flex flex-col items-center gap-2 text-xs leading-snug text-foreground ${
+                  !aqiAvailable ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  disabled={!aqiAvailable}
+                  checked={airQualityOn}
+                  onChange={onAirQualityToggle}
+                />
+                <div className="h-20 w-full overflow-hidden rounded-lg border border-border/60 bg-muted/30 shadow-sm transition-all peer-checked:border-primary peer-checked:ring-2 peer-checked:ring-primary/30 md:h-14">
+                  <img
+                    src={aqiPreview}
+                    alt="Calidad del aire"
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+                <span className="text-center text-[11px] text-foreground">Calidad del aire</span>
+              </label>
+
+              {weatherOptions.map((layer) => (
+                <label
+                  key={layer.id}
+                  className="flex flex-col items-center gap-2 text-xs leading-snug text-foreground"
+                >
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={overlayLayerIds.includes(layer.id)}
+                    onChange={() => onOverlayToggle(layer.id)}
+                  />
+                  <div className="h-20 w-full overflow-hidden rounded-lg border border-border/60 bg-muted/30 shadow-sm transition-all peer-checked:border-primary peer-checked:ring-2 peer-checked:ring-primary/30 md:h-14">
+                    <img
+                      src={layer.preview}
+                      alt={layer.label}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  <span className="text-center text-[11px] text-foreground">{layer.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Mobile */}
       <div className="fixed top-20 right-3 md:hidden z-[1100] flex flex-col items-center gap-3">
         <button
@@ -305,6 +424,16 @@ export default function LeftSidebar({
 
       <div className="fixed bottom-0 left-0 right-0 md:hidden z-[1300]">
         <div className="mx-auto flex h-16 w-full items-center justify-center gap-3 bg-card/95 px-4 shadow-xl border-t border-border">
+          <button
+            type="button"
+            className="w-11 h-11 flex items-center justify-center rounded-full text-foreground hover:bg-accent transition"
+            onClick={onWeatherToggle}
+            aria-expanded={weatherOpen}
+            aria-controls="weather-panel"
+          >
+            <Cloud className="h-5 w-5" />
+          </button>
+
           <button
             type="button"
             className="w-11 h-11 flex items-center justify-center rounded-full text-foreground hover:bg-accent transition"
