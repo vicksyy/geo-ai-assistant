@@ -119,9 +119,9 @@ export default function LeftSidebar({
     },
     {
       id: 'inundacion' as OverlayLayerId,
-      label: 'Riesgo inundacion',
+      label: 'Riesgo inundacion (ARPSI)',
       preview:
-        'https://ows.globalfloods.eu/glofas-ows/ows.py?service=WMS&request=GetMap&version=1.1.1&layers=FloodHazard100y&styles=&bbox=-6,36,3,44&srs=EPSG:4326&width=256&height=256&format=image/png&transparent=true',
+        'https://wms.mapama.gob.es/sig/agua/ZI_ARPSI?service=WMS&request=GetMap&version=1.3.0&layers=NZ.RiskZone&styles=Agua_Zi_ARPSI&crs=CRS:84&bbox=-6,36,3,44&width=256&height=256&format=image/png&transparent=true',
     },
   ];
 
@@ -133,7 +133,7 @@ export default function LeftSidebar({
 
         <button
           type="button"
-          className="mt-24 w-10 h-10 flex items-center justify-center rounded-lg text-foreground hover:bg-accent transition relative"
+          className="mt-12 w-10 h-10 flex items-center justify-center rounded-lg text-foreground hover:bg-accent transition relative"
           onClick={onLayersToggle}
           onMouseEnter={(e) => {
             const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
@@ -146,11 +146,9 @@ export default function LeftSidebar({
           <Layers className="h-5 w-5" />
         </button>
 
-        <div className="flex-[0.3]" />
-
         <button
           type="button"
-          className="w-10 h-10 flex items-center justify-center rounded-lg text-foreground hover:bg-accent transition relative"
+          className="mt-8 w-10 h-10 flex items-center justify-center rounded-lg text-foreground hover:bg-accent transition relative"
           onClick={onWeatherToggle}
           onMouseEnter={(e) => {
             const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
@@ -162,6 +160,8 @@ export default function LeftSidebar({
         >
           <Cloud className="h-5 w-5" />
         </button>
+
+        <div className="flex-[0.05]" />
 
         <button
           type="button"

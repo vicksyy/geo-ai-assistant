@@ -53,96 +53,30 @@ export default function ComparePanel({
   const [result, setResult] = useState<CompareResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const translateLanduse = (value: string) => {
-    const map: Record<string, string> = {
-      residential: 'Residencial',
-      commercial: 'Comercial',
-      industrial: 'Industrial',
-      retail: 'Comercial minorista',
-      grass: 'Zonas verdes',
-      meadow: 'Pradera',
-      forest: 'Bosque',
-      farmland: 'Agrícola',
-      orchard: 'Cultivos',
-      vineyard: 'Viñedos',
-      cemetery: 'Cementerio',
-      recreation_ground: 'Ocio y recreo',
-      park: 'Parque',
-      allotments: 'Huertos',
-      construction: 'En construcción',
-      brownfield: 'Suelo degradado',
-      landfill: 'Vertedero',
-      quarry: 'Cantera',
-      railway: 'Ferroviario',
-      military: 'Militar',
-      education: 'Educativo',
-    };
-    return map[value] ?? value;
-  };
-
-  const translateAmenity = (value: string) => {
-    const map: Record<string, string> = {
-      school: 'Escuela',
-      university: 'Universidad',
-      college: 'Colegio',
-      hospital: 'Hospital',
-      clinic: 'Clínica',
-      doctors: 'Centro médico',
-      pharmacy: 'Farmacia',
-      police: 'Policía',
-      fire_station: 'Bomberos',
-      townhall: 'Ayuntamiento',
-      library: 'Biblioteca',
-      bank: 'Banco',
-      post_office: 'Correos',
-      marketplace: 'Mercado',
-      bus_station: 'Estación de autobuses',
-      parking: 'Aparcamiento',
-      place_of_worship: 'Lugar de culto',
-      restaurant: 'Restaurante',
-      cafe: 'Cafetería',
-      bar: 'Bar',
-      fuel: 'Gasolinera',
-      kindergarten: 'Guardería',
-      bench: 'Banco (asiento)',
-    };
-    return map[value] ?? value;
-  };
-
-  const formatUrbanSummary = (urban?: CityResult['urban']) => {
-    if (!urban) return null;
-    const details = urban.details ?? {};
-    const landuse = Array.isArray(details.landuse) ? details.landuse : [];
-    const amenities = Array.isArray(details.amenities) ? details.amenities : [];
-    const buildingCount = Number.isFinite(details.building_count)
-      ? Number(details.building_count)
-      : null;
-    const radius = Number.isFinite(details.radius_m) ? Number(details.radius_m) : null;
-    const sentences: string[] = [];
-
-    if (landuse.length && landuse[0]?.type) {
-      sentences.push(`Uso dominante: ${translateLanduse(landuse[0].type)}.`);
-    }
-    if (amenities.length && amenities[0]?.type) {
-      sentences.push(`Servicios cercanos: ${translateAmenity(amenities[0].type)}.`);
-    }
-    if (buildingCount !== null) {
-      sentences.push(`Edificios cercanos: ${buildingCount}.`);
-    }
-    if (radius !== null) {
-      sentences.push(`Radio de consulta: ${radius} m.`);
-    }
-
-    if (!sentences.length) return urban.summary ?? null;
-    if (urban.summary) return `${urban.summary} ${sentences.join(' ')}`.trim();
-    return sentences.join(' ');
+  const formatFloodRiskLabel = (value?: string | null) => {
+    if (!value) return null;
+    const normalized = value.toLowerCase();
+    let level: 'bajo' | 'medio' | 'alto' | 'desconocido' | null = null;
+    if (normalized.includes('alto')) level = 'alto';
+    else if (normalized.includes('medio')) level = 'medio';
+    else if (normalized.includes('bajo')) level = 'bajo';
+    else if (normalized.includes('desconoc')) level = 'desconocido';
+    if (!level) return value;
+    const label = `${level.charAt(0).toUpperCase()}${level.slice(1)}`;
+    return `${label} (ARPSI)`;
   };
 
   const formatRiskSummary = (city: CityResult) => {
-    if (!city.risk) return 'No disponible';
-    if (city.riskNote) return `${city.risk} (${city.riskNote})`;
-    return city.risk;
+    const formatted = formatFloodRiskLabel(city.risk);
+    return formatted ?? 'No disponible';
   };
+
+  const formatComparisonItem = (item: string) =>
+    item.replace(/\b(bajo|medio|alto|desconocido)\s*\(arpsi\)/gi, (match, level) => {
+      const normalized = String(level).toLowerCase();
+      const label = `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`;
+      return `${label} (ARPSI)`;
+    });
 
   const normalizeText = (value: string) =>
     value
@@ -308,7 +242,7 @@ export default function ComparePanel({
   };
 
   return (
-    <div className="fixed inset-0 z-[1200] flex flex-col overflow-hidden bg-card/95 pb-20 text-foreground shadow-2xl backdrop-blur md:absolute md:left-4 md:right-auto md:top-24 md:inset-auto md:max-h-[80vh] md:w-[420px] md:rounded-2xl md:border md:border-border md:pb-0">
+    <div className="fixed inset-0 z-[1200] flex flex-col overflow-hidden bg-card/95 pb-20 text-foreground shadow-2xl backdrop-blur md:absolute md:left-4 md:right-auto md:top-24 md:inset-auto md:max-h-[80vh] md:w-[320px] lg:w-[420px] md:rounded-2xl md:border md:border-border md:pb-0">
       <div className="flex items-center justify-between px-4 py-3">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Comparar ciudades</h3>
@@ -327,7 +261,7 @@ export default function ComparePanel({
 
       <div className="flex-1 overflow-y-auto">
         <div className="px-4 py-4">
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-2 md:grid-cols-2">
             <div className="relative">
               <Input
                 placeholder="Ciudad A"
@@ -450,8 +384,8 @@ export default function ComparePanel({
 
         <div className="px-4 pb-4">
           {result && (
-            <div className="space-y-4 text-sm text-foreground">
-              <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2 text-sm text-foreground">
+              <div className="grid gap-2 md:grid-cols-2">
                 {[result.cityA, result.cityB].map((city) => (
                   <div
                     key={city.name}
@@ -512,12 +446,6 @@ export default function ComparePanel({
                       <span className="font-semibold text-foreground">Riesgo inundación:</span>{' '}
                       {formatRiskSummary(city)}
                     </div>
-                    {formatUrbanSummary(city.urban) && (
-                      <div>
-                        <span className="font-semibold text-foreground">Urbanismo:</span>{' '}
-                        {formatUrbanSummary(city.urban)}
-                      </div>
-                    )}
                     </div>
                   </div>
                 ))}
@@ -527,7 +455,7 @@ export default function ComparePanel({
               <div className="text-sm font-semibold text-foreground">Comparación clave</div>
               <ul className="mt-2 space-y-1 text-xs text-foreground">
                 {result.comparison.map((item, index) => (
-                  <li key={`cmp-${index}`}>• {item}</li>
+                  <li key={`cmp-${index}`}>• {formatComparisonItem(item)}</li>
                 ))}
                 </ul>
               </div>

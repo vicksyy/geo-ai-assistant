@@ -45,6 +45,7 @@ ${isPlaceScope ? '- Enfócate en el contexto general del lugar seleccionado y ev
 - Debes usar datos de herramientas reales y citar las fuentes en el informe.
 - Indica limitaciones y cobertura de los datos si aplica.
 - No uses Markdown ni símbolos de título (como #, ##, ###). Usa subtítulos en texto plano con dos puntos.
+- Si aparecen términos en inglés de usos del suelo o urbanismo, tradúcelos al español y no incluyas el término original en inglés.
 
 Estructura del informe:
 
@@ -71,12 +72,15 @@ Propón usos urbanos compatibles con el entorno y las características de la zon
 - Comercial
 - Industrial ligero
 Justifica brevemente cada uso sugerido.
+Si el riesgo de inundación es alto (arpsi) o el riesgo de incendio es muy alto o extremo, no recomiendes usos urbanos sensibles y señala que no es adecuado para desarrollo urbano sin mitigación.
+Si los riesgos de inundación e incendio son bajos (bajo (arpsi) y riesgo de incendio bajo/moderado), puedes considerar el área adecuada, siempre condicionado a la infraestructura cercana.
 
 Recomendación final:
 Ofrece una conclusión integradora que resuma el potencial del área, su viabilidad para el desarrollo urbano y una recomendación general de uso o estudio adicional.
+La recomendación debe reflejar explícitamente la infraestructura cercana y los riesgos de inundación e incendio: si alguno es alto, desaconseja el desarrollo; si ambos son bajos, puedes recomendarlo.
 
 Fuentes y limitaciones:
-Menciona explícitamente las fuentes usadas (Copernicus, IGN, OpenStreetMap) y limita la interpretación si hay falta de cobertura o resolución.
+Menciona explícitamente las fuentes usadas (Copernicus GWIS/EFFIS, Copernicus, IGN, OpenStreetMap) y limita la interpretación si hay falta de cobertura o resolución.
 
 Formato:
 Empieza el informe con estas dos líneas en texto plano:
@@ -131,6 +135,23 @@ Luego usa exactamente estos subtítulos en el informe y en texto plano: "Descrip
           },
         },
       },
+      {
+        type: 'function',
+        function: {
+          name: 'riesgoIncendio',
+          description:
+            'Consulta el indice FWI de peligro de incendio (Copernicus GWIS) para una ubicacion.',
+          parameters: {
+            type: 'object',
+            properties: {
+              lat: { type: 'number' },
+              lon: { type: 'number' },
+              date: { type: 'string' },
+            },
+            required: ['lat', 'lon'],
+          },
+        },
+      },
     ];
 
     const callTool = async (name: string, args: Record<string, any>) => {
@@ -154,6 +175,13 @@ Luego usa exactamente estos subtítulos en el informe y en texto plano: "Descrip
         );
         return res.ok ? await res.json() : { error: 'No se pudo consultar inundación' };
       }
+      if (name === 'riesgoIncendio') {
+        const dateParam = args.date ? `&date=${encodeURIComponent(args.date)}` : '';
+        const res = await fetch(
+          `${origin}/api/tools/riesgoIncendio?lat=${args.lat}&lon=${args.lon}${dateParam}`
+        );
+        return res.ok ? await res.json() : { error: 'No se pudo consultar incendio' };
+      }
       return { error: 'Tool desconocida' };
     };
 
@@ -167,7 +195,7 @@ Luego usa exactamente estos subtítulos en el informe y en texto plano: "Descrip
       systemMessage,
       {
         role: 'user' as const,
-        content: `${prompt}\n\nInstruccion: Antes de redactar el informe, llama a las herramientas capasUrbanismo y riesgoInundacion para obtener datos reales. Si faltan coordenadas, usa buscarCoordenadas.`,
+        content: `${prompt}\n\nInstruccion: Antes de redactar el informe, llama a las herramientas capasUrbanismo, riesgoInundacion y riesgoIncendio para obtener datos reales. Si faltan coordenadas, usa buscarCoordenadas.`,
       },
     ];
 
@@ -230,6 +258,7 @@ Luego usa exactamente estos subtítulos en el informe y en texto plano: "Descrip
 
     await ensureTool('capasUrbanismo');
     await ensureTool('riesgoInundacion');
+    await ensureTool('riesgoIncendio');
 
     messages.push({
       role: 'user',

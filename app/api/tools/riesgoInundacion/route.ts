@@ -44,9 +44,10 @@ export async function GET(req: Request) {
     estado: props["Estado"] ?? null,
   });
 
-  const classifyRisk = (hasFeature: boolean) => {
-    if (hasFeature) return "En ARPSI";
-    return "Fuera ARPSI";
+  const classifyRisk = (hasFeature: boolean | null) => {
+    if (hasFeature === null) return "desconocido (arpsi)";
+    if (hasFeature) return "alto (arpsi)";
+    return "bajo (arpsi)";
   };
 
   const fetchWithTimeout = async (url: string, timeoutMs = 6000) => {
@@ -78,8 +79,9 @@ export async function GET(req: Request) {
         method: "GetFeatureInfo",
         layer: MITECO_LAYER,
         value: null,
-        risk_level: "Desconocido",
-        scale_note: "ARPSI = area de riesgo potencial significativo de inundacion",
+        risk_level: "desconocido (arpsi)",
+        scale_note:
+          "Clasificacion aproximada basada en ARPSI (MITECO).",
         warning:
           response.status > 0
             ? `HTTP ${response.status}`
@@ -94,8 +96,9 @@ export async function GET(req: Request) {
         method: "GetFeatureInfo",
         layer: MITECO_LAYER,
         value: null,
-        risk_level: "Desconocido",
-        scale_note: "ARPSI = area de riesgo potencial significativo de inundacion",
+        risk_level: "desconocido (arpsi)",
+        scale_note:
+          "Clasificacion aproximada basada en ARPSI (MITECO).",
         warning: "Respuesta vacia del servicio WMS",
       });
     }
@@ -111,24 +114,25 @@ export async function GET(req: Request) {
         method: "GetFeatureInfo",
         layer: MITECO_LAYER,
         value: null,
-        risk_level: "Desconocido",
-        scale_note: "ARPSI = area de riesgo potencial significativo de inundacion",
+        risk_level: "desconocido (arpsi)",
+        scale_note:
+          "Clasificacion aproximada basada en ARPSI (MITECO).",
         warning: "Respuesta WMS no valida",
       });
     }
 
     const properties = extractProperties(json);
-    const hasFeature = Boolean(properties);
+    const hasFeature = properties ? true : json ? false : null;
     const details = properties ? pickDetails(properties) : null;
 
     return NextResponse.json({
       source: "MITECO WMS ARPSI",
       method: "GetFeatureInfo",
       layer: MITECO_LAYER,
-      value: hasFeature ? 1 : 0,
+      value: hasFeature === null ? null : hasFeature ? 1 : 0,
       risk_level: classifyRisk(hasFeature),
       scale_note:
-        "ARPSI = area de riesgo potencial significativo de inundacion (1 dentro, 0 fuera)",
+        "Clasificacion aproximada basada en ARPSI (MITECO).",
       details,
       raw_properties: properties,
     });
@@ -139,8 +143,9 @@ export async function GET(req: Request) {
       method: "GetFeatureInfo",
       layer: MITECO_LAYER,
       value: null,
-      risk_level: "Desconocido",
-      scale_note: "ARPSI = area de riesgo potencial significativo de inundacion",
+      risk_level: "desconocido (arpsi)",
+      scale_note:
+        "Clasificacion aproximada basada en ARPSI (MITECO).",
       warning: "Error al consultar riesgo de inundacion",
     });
   }

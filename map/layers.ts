@@ -67,6 +67,7 @@ export const overlayLayerOptions: {
   format?: string;
   transparent?: boolean;
   version?: string;
+  styles?: string;
 }[] = [
   {
     id: 'transport',
@@ -86,14 +87,15 @@ export const overlayLayerOptions: {
   },
   {
     id: 'inundacion',
-    label: 'Riesgo de inundacion (Copernicus)',
+    label: 'Riesgo de inundacion (ARPSI)',
     kind: 'wms',
-    url: 'https://ows.globalfloods.eu/glofas-ows/ows.py',
-    layers: 'FloodHazard100y',
+    url: 'https://wms.mapama.gob.es/sig/agua/ZI_ARPSI',
+    layers: 'NZ.RiskZone',
+    styles: 'Agua_Zi_ARPSI',
     format: 'image/png',
     transparent: true,
     version: '1.3.0',
-    attribution: '© Copernicus Emergency Management Service (GloFAS)',
+    attribution: '© MITECO - ARPSI',
   },
   {
     id: 'airtemp',
@@ -162,6 +164,7 @@ export function buildLayers(L: typeof import('leaflet')) {
       if (layer.kind === 'wms' && layer.layers) {
         acc[layer.id] = L.tileLayer.wms(layer.url, {
           layers: layer.layers,
+          styles: layer.styles ?? '',
           format: layer.format ?? 'image/png',
           transparent: layer.transparent ?? true,
           version: layer.version ?? '1.3.0',

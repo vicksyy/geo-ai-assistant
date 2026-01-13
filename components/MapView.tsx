@@ -351,9 +351,18 @@ export default function MapView({
         const label = locationMatch[1];
         const value = locationMatch[2];
         return (
-          <p key={`line-${index}`} className="text-sm text-foreground text-justify">
+          <p key={`line-${index}`} className="text-sm text-foreground text-left">
             <span className="font-semibold text-foreground">{label}:</span>{' '}
             <span className="font-semibold text-foreground">{value}</span>
+          </p>
+        );
+      }
+
+      const coordsMatch = trimmed.match(/^Coordenadas:\s*(.+)$/i);
+      if (coordsMatch) {
+        return (
+          <p key={`line-${index}`} className="text-sm text-muted-foreground text-left">
+            <span className="text-muted-foreground">{coordsMatch[1]}</span>
           </p>
         );
       }
@@ -1369,11 +1378,12 @@ return (
     bottom-16
     h-[40%]
     md:absolute
-    md:top-4
+    md:top-20
     md:bottom-4
     md:left-4
-    md:w-[420px]
-    md:h-[calc(100%-2rem)]
+    md:w-[320px]
+    lg:w-[420px]
+    md:h-[calc(100%-6rem)]
     bg-card
     shadow-xl
     rounded-t-lg
@@ -1415,7 +1425,7 @@ return (
   <div className="-mx-4 mb-3 mt-2 h-px bg-border" />
 
   {/* CONTENIDO SCROLL */}
-  <div className="flex-1 overflow-y-auto pr-4 md:pr-6">
+  <div className="flex-1 overflow-y-auto pr-1 md:pr-2">
     {loadingInforme && (
       <p className="text-sm text-muted-foreground">
         Generando informe...

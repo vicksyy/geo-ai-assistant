@@ -74,6 +74,81 @@ const pickLatest = (values: Array<{ value: number; time?: number | null }>) => {
   );
 };
 
+const normalizeRisk = (value?: string | null) => (value ?? '').toLowerCase().trim();
+
+const formatFloodRiskLabel = (value?: string | null) => {
+  if (!value) return null;
+  const normalized = value.toLowerCase();
+  let level: 'bajo' | 'medio' | 'alto' | 'desconocido' | null = null;
+  if (normalized.includes('alto')) level = 'alto';
+  else if (normalized.includes('medio')) level = 'medio';
+  else if (normalized.includes('bajo')) level = 'bajo';
+  else if (normalized.includes('desconoc')) level = 'desconocido';
+  if (!level) return value;
+  const label = `${level.charAt(0).toUpperCase()}${level.slice(1)}`;
+  return `${label} (ARPSI)`;
+};
+
+const getInfrastructureLevel = (details?: Record<string, any> | null) => {
+  if (!details) return { level: 'desconocida', totalAmenities: null, buildingCount: null };
+  const amenities = Array.isArray(details.amenities) ? details.amenities : [];
+  const buildingCount = Number.isFinite(details.building_count)
+    ? Number(details.building_count)
+    : null;
+  const totalAmenities = amenities.reduce((sum: number, item: any) => {
+    const count = Number(item?.count);
+    return Number.isFinite(count) ? sum + count : sum;
+  }, 0);
+
+  if (buildingCount !== null && buildingCount >= 80) {
+    return { level: 'alta', totalAmenities, buildingCount };
+  }
+  if (totalAmenities >= 6 || (buildingCount !== null && buildingCount >= 35)) {
+    return { level: 'media', totalAmenities, buildingCount };
+  }
+  if (totalAmenities >= 1 || (buildingCount !== null && buildingCount >= 10)) {
+    return { level: 'baja', totalAmenities, buildingCount };
+  }
+  return { level: 'desconocida', totalAmenities, buildingCount };
+};
+
+const buildUrbanRecommendation = (params: {
+  urban?: { summary?: string | null; details?: Record<string, any> | null } | null;
+  floodRisk?: string | null;
+  fireRisk?: string | null;
+}) => {
+  const { urban, floodRisk, fireRisk } = params;
+  if (!urban) return null;
+
+  const infra = getInfrastructureLevel(urban.details);
+  const flood = normalizeRisk(floodRisk);
+  const fire = normalizeRisk(fireRisk);
+  const highFlood = flood.startsWith('alto');
+  const highFire = fire.includes('muy alto') || fire.includes('extremo');
+  const lowFlood = flood.startsWith('bajo');
+  const lowFire = fire.startsWith('bajo') || fire.startsWith('moderado');
+
+  let recommendation = 'Requiere estudio adicional por incertidumbre en riesgos.';
+  if (highFlood || highFire) {
+    recommendation = 'No recomendable para desarrollo urbano sin mitigación.';
+  } else if (lowFlood && lowFire) {
+    recommendation =
+      infra.level === 'alta'
+        ? 'Adecuada para desarrollo urbano con la infraestructura actual.'
+        : infra.level === 'media'
+          ? 'Adecuada con mejoras puntuales de infraestructura.'
+          : 'Limitada por falta de infraestructura cercana.';
+  }
+
+  const infraNote =
+    infra.level === 'desconocida'
+      ? 'Infraestructura: sin datos suficientes.'
+      : `Infraestructura: ${infra.level}.`;
+
+  const base = urban.summary ? `${urban.summary} ` : '';
+  return `${base}${infraNote} Recomendacion: ${recommendation}`.trim();
+};
+
 const convertAreaToKm2 = (amount: number, unitUri?: string | null) => {
   if (!Number.isFinite(amount)) return null;
   const unitId = unitUri ? unitUri.split('/').pop() : null;
@@ -487,9 +562,10 @@ export async function POST(req: Request) {
       );
       const countryName = pickFirst(geo.country_name, address.country, labelParts.country);
 
-      const [urban, riesgo, facts, air] = await Promise.all([
+      const [urban, riesgo, incendio, facts, air] = await Promise.all([
         fetchJson(`${origin}/api/tools/capasUrbanismo?lat=${lat}&lon=${lon}`).catch(() => null),
         fetchJson(`${origin}/api/tools/riesgoInundacion?lat=${lat}&lon=${lon}`).catch(() => null),
+        fetchJson(`${origin}/api/tools/riesgoIncendio?lat=${lat}&lon=${lon}`).catch(() => null),
         fetchCityFacts({
           label: name,
           city: cityName,
@@ -512,6 +588,18 @@ export async function POST(req: Request) {
       const density =
         facts?.population && areaKm2 ? Math.round(facts.population / areaKm2) : null;
 
+      const urbanPayload = urban
+        ? {
+            source: urban.source ?? null,
+            summary: buildUrbanRecommendation({
+              urban,
+              floodRisk: riesgo?.risk_level ?? null,
+              fireRisk: incendio?.risk_level ?? null,
+            }),
+            details: urban.details ?? null,
+          }
+        : null;
+
       return {
         name,
         lat,
@@ -527,13 +615,7 @@ export async function POST(req: Request) {
         risk: riesgo?.risk_level ?? null,
         riskNote: riesgo?.scale_note ?? null,
         riskSource: riesgo?.source ?? null,
-        urban: urban
-          ? {
-              source: urban.source ?? null,
-              summary: urban.summary ?? null,
-              details: urban.details ?? null,
-            }
-          : null,
+        urban: urbanPayload,
       };
     };
 
@@ -610,16 +692,10 @@ export async function POST(req: Request) {
     }
 
     if (dataA.risk && dataB.risk) {
+      const riskA = formatFloodRiskLabel(dataA.risk) ?? dataA.risk;
+      const riskB = formatFloodRiskLabel(dataB.risk) ?? dataB.risk;
       comparison.push(
-        `Riesgo de inundación: ${dataA.name} (${dataA.risk}) vs ${dataB.name} (${dataB.risk}).`
-      );
-    }
-
-    if (dataA.urban?.summary || dataB.urban?.summary) {
-      comparison.push(
-        `Contexto urbano: ${dataA.name} (${dataA.urban?.summary ?? 'sin datos'}) vs ${
-          dataB.name
-        } (${dataB.urban?.summary ?? 'sin datos'}).`
+        `Riesgo de inundación: ${dataA.name} (${riskA}) vs ${dataB.name} (${riskB}).`
       );
     }
 
