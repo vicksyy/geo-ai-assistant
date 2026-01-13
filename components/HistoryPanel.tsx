@@ -129,6 +129,10 @@ export default function HistoryPanel({
   };
 
   const currentLabel = useMemo(() => location?.label ?? 'Sin ubicación', [location]);
+  const currentCoords = useMemo(() => {
+    if (!location) return null;
+    return `${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}`;
+  }, [location]);
 
   // Keep mounted for desktop slide animation.
 
@@ -144,7 +148,10 @@ export default function HistoryPanel({
           <h3 className="text-sm font-semibold text-foreground">
             {mode === 'history' ? 'Histórico' : 'Notas y comentarios'}
           </h3>
-          <p className="text-xs text-muted-foreground">{currentLabel}</p>
+          <p className="text-xs text-muted-foreground">
+            {currentLabel}
+            {currentCoords ? ` · ${currentCoords}` : ''}
+          </p>
         </div>
         <button
           type="button"
