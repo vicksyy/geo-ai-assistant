@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Layers, Cloud, ArrowLeftRight, History, StickyNote } from 'lucide-react';
+import { Layers, Cloud, ArrowLeftRight, History, StickyNote, Sparkles } from 'lucide-react';
 import { BaseLayerId, OverlayLayerId } from '../map/layers';
 import ThemeToggle from './ThemeToggle';
 
@@ -13,6 +13,9 @@ interface LeftSidebarProps {
   onCompareClick?: () => void;
   onHistoryClick?: () => void;
   onSaveClick?: () => void;
+  reportAvailable?: boolean;
+  reportOpen?: boolean;
+  onReportToggle?: () => void;
   baseLayerId: BaseLayerId;
   overlayLayerIds: OverlayLayerId[];
   onBaseLayerChange: (id: BaseLayerId) => void;
@@ -31,6 +34,9 @@ export default function LeftSidebar({
   onCompareClick,
   onHistoryClick,
   onSaveClick,
+  reportAvailable = false,
+  reportOpen = false,
+  onReportToggle,
   baseLayerId,
   overlayLayerIds,
   onBaseLayerChange,
@@ -201,6 +207,25 @@ export default function LeftSidebar({
         >
           <StickyNote className="h-5 w-5" />
         </button>
+
+        {reportAvailable && (
+          <button
+            type="button"
+            className={`w-10 h-10 flex items-center justify-center rounded-lg text-foreground hover:bg-accent transition relative ${
+              reportOpen ? 'bg-accent' : ''
+            }`}
+            onClick={() => onReportToggle?.()}
+            onMouseEnter={(e) => {
+              const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+              setTooltip({ name: 'Informe IA', top: rect.top + rect.height / 2, left: rect.right });
+            }}
+            onMouseLeave={() => setTooltip(null)}
+            aria-pressed={reportOpen}
+            aria-label="Informe IA"
+          >
+            <Sparkles className="h-5 w-5" />
+          </button>
+        )}
 
         <div className="flex-1" />
       </aside>
@@ -457,6 +482,20 @@ export default function LeftSidebar({
           >
             <StickyNote className="h-5 w-5" />
           </button>
+
+          {reportAvailable && (
+            <button
+              type="button"
+              className={`w-11 h-11 flex items-center justify-center rounded-full text-foreground hover:bg-accent transition ${
+                reportOpen ? 'bg-accent' : ''
+              }`}
+              onClick={() => onReportToggle?.()}
+              aria-pressed={reportOpen}
+              aria-label="Informe IA"
+            >
+              <Sparkles className="h-5 w-5" />
+            </button>
+          )}
         </div>
       </div>
     </>

@@ -22,6 +22,8 @@ export default function HomePage() {
   const [compareOpen, setCompareOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
+  const [reportAvailable, setReportAvailable] = useState(false);
   const [baseLayerId, setBaseLayerId] = useState<BaseLayerId>('osm');
   const [overlayLayerIds, setOverlayLayerIds] = useState<OverlayLayerId[]>([]);
   const [airQualityOn, setAirQualityOn] = useState(false);
@@ -35,6 +37,9 @@ export default function HomePage() {
   const aqiAvailable = Boolean(aqicnToken);
 
   const togglePanel = (panel: 'layers' | 'weather' | 'compare' | 'history' | 'save') => {
+    if (panel === 'compare' || panel === 'history' || panel === 'save') {
+      setReportVisible(false);
+    }
     setLayersOpen((prev) => (panel === 'layers' ? !prev : false));
     setWeatherOpen((prev) => (panel === 'weather' ? !prev : false));
     setCompareOpen((prev) => (panel === 'compare' ? !prev : false));
@@ -48,6 +53,15 @@ export default function HomePage() {
     setCompareOpen(false);
     setHistoryOpen(false);
     setSaveOpen(false);
+  };
+
+  const handleReportVisibilityChange = (visible: boolean) => {
+    setReportVisible(visible);
+    if (visible) {
+      setCompareOpen(false);
+      setHistoryOpen(false);
+      setSaveOpen(false);
+    }
   };
 
   useEffect(() => {
@@ -91,6 +105,9 @@ export default function HomePage() {
         onCompareClick={() => togglePanel('compare')}
         onHistoryClick={() => togglePanel('history')}
         onSaveClick={() => togglePanel('save')}
+        reportAvailable={reportAvailable}
+        reportOpen={reportVisible}
+        onReportToggle={() => handleReportVisibilityChange(!reportVisible)}
         baseLayerId={baseLayerId}
         overlayLayerIds={overlayLayerIds}
         onBaseLayerChange={handleBaseChange}
@@ -155,6 +172,11 @@ export default function HomePage() {
          layerState={{ baseId: baseLayerId, overlays: overlayLayerIds }}
          aqicnToken={aqicnToken}
          onReportOpen={closeSidePanels}
+         reportVisible={reportVisible}
+         onReportVisibilityChange={handleReportVisibilityChange}
+         onReportStateChange={(state) => {
+           setReportAvailable(state.loading || state.hasReport);
+         }}
          selectedPlace={selectedPlace}
        />
       </div>

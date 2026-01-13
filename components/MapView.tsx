@@ -18,6 +18,13 @@ interface MapViewProps {
   layerState?: { baseId: BaseLayerId; overlays: OverlayLayerId[] };
   aqicnToken?: string;
   onReportOpen?: () => void;
+  reportVisible?: boolean;
+  onReportVisibilityChange?: (visible: boolean) => void;
+  onReportStateChange?: (state: {
+    visible: boolean;
+    loading: boolean;
+    hasReport: boolean;
+  }) => void;
   selectedPlace?: {
     label: string;
     placeClass?: string | null;
@@ -34,6 +41,9 @@ export default function MapView({
   layerState,
   aqicnToken,
   onReportOpen,
+  reportVisible,
+  onReportVisibilityChange,
+  onReportStateChange,
   selectedPlace,
 }: MapViewProps) {
   const mapRef = useRef<any>(null);
@@ -327,8 +337,23 @@ export default function MapView({
   const [mapZoom, setMapZoom] = useState<number | null>(null);
   const [informe, setInforme] = useState<string | null>(null);
   const [loadingInforme, setLoadingInforme] = useState(false);
-  const [mostrarInforme, setMostrarInforme] = useState(false);
+  const [mostrarInformeInternal, setMostrarInformeInternal] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const mostrarInforme = reportVisible ?? mostrarInformeInternal;
+  const setMostrarInforme = (value: boolean) => {
+    onReportVisibilityChange?.(value);
+    if (reportVisible === undefined) {
+      setMostrarInformeInternal(value);
+    }
+  };
+
+  useEffect(() => {
+    onReportStateChange?.({
+      visible: mostrarInforme,
+      loading: loadingInforme,
+      hasReport: Boolean(informe),
+    });
+  }, [mostrarInforme, loadingInforme, informe, onReportStateChange]);
 
   const renderInforme = (text: string) => {
     const sectionTitles = [
