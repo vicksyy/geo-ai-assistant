@@ -17,6 +17,7 @@ interface MapViewProps {
   onLocationResolved?: (location: { lat: number; lon: number; label: string }) => void;
   layerState?: { baseId: BaseLayerId; overlays: OverlayLayerId[] };
   aqicnToken?: string;
+  onReportOpen?: () => void;
   selectedPlace?: {
     label: string;
     placeClass?: string | null;
@@ -26,7 +27,15 @@ interface MapViewProps {
 }
 
 
-export default function MapView({ coordenadas, onMapClick, onLocationResolved, layerState, aqicnToken, selectedPlace }: MapViewProps) {
+export default function MapView({
+  coordenadas,
+  onMapClick,
+  onLocationResolved,
+  layerState,
+  aqicnToken,
+  onReportOpen,
+  selectedPlace,
+}: MapViewProps) {
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const layersRef = useRef<{
@@ -279,6 +288,7 @@ export default function MapView({ coordenadas, onMapClick, onLocationResolved, l
       .openPopup();
 
     window.generarInforme = async (lat: number, lon: number, street: string, placeScope = false) => {
+      onReportOpen?.();
       setMostrarInforme(true);
       setLoadingInforme(true);
       setInforme(null);
@@ -341,7 +351,7 @@ export default function MapView({ coordenadas, onMapClick, onLocationResolved, l
         const label = locationMatch[1];
         const value = locationMatch[2];
         return (
-          <p key={`line-${index}`} className="text-sm text-foreground">
+          <p key={`line-${index}`} className="text-sm text-foreground text-justify">
             <span className="font-semibold text-foreground">{label}:</span>{' '}
             <span className="font-semibold text-foreground">{value}</span>
           </p>
@@ -354,7 +364,7 @@ export default function MapView({ coordenadas, onMapClick, onLocationResolved, l
       if (match) {
         const rest = trimmed.slice(match.length + 1).trim();
         return (
-          <p key={`line-${index}`} className="text-sm text-foreground">
+          <p key={`line-${index}`} className="text-sm text-foreground text-justify">
             <span className="font-semibold text-foreground">{match}:</span>
             {rest ? ` ${rest}` : ''}
           </p>
@@ -362,7 +372,7 @@ export default function MapView({ coordenadas, onMapClick, onLocationResolved, l
       }
 
       return (
-        <p key={`line-${index}`} className="text-sm text-muted-foreground">
+        <p key={`line-${index}`} className="text-sm text-muted-foreground text-justify">
           {line}
         </p>
       );
@@ -1362,7 +1372,7 @@ return (
     md:top-4
     md:bottom-4
     md:left-4
-    md:w-[380px]
+    md:w-[420px]
     md:h-[calc(100%-2rem)]
     bg-card
     shadow-xl
@@ -1405,7 +1415,7 @@ return (
   <div className="-mx-4 mb-3 mt-2 h-px bg-border" />
 
   {/* CONTENIDO SCROLL */}
-  <div className="flex-1 overflow-y-auto">
+  <div className="flex-1 overflow-y-auto pr-4 md:pr-6">
     {loadingInforme && (
       <p className="text-sm text-muted-foreground">
         Generando informe...

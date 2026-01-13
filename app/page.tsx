@@ -40,6 +40,13 @@ export default function HomePage() {
     setSaveOpen((prev) => (panel === 'save' ? !prev : false));
   };
 
+  const closeSidePanels = () => {
+    setLayersOpen(false);
+    setCompareOpen(false);
+    setHistoryOpen(false);
+    setSaveOpen(false);
+  };
+
   useEffect(() => {
     if (baseLayerId !== 'ica') {
       lastBaseRef.current = baseLayerId;
@@ -142,6 +149,7 @@ export default function HomePage() {
          onLocationResolved={(loc) => setLastLocation(loc)}
          layerState={{ baseId: baseLayerId, overlays: overlayLayerIds }}
          aqicnToken={aqicnToken}
+         onReportOpen={closeSidePanels}
          selectedPlace={selectedPlace}
        />
       </div>
