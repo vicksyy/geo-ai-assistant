@@ -1,8 +1,9 @@
 // app/api/tools/riesgoInundacion/route.ts
 import { NextResponse } from "next/server";
 
-const COPERNICUS_WMS = "https://ows.globalfloods.eu/glofas-ows/ows.py";
-const COPERNICUS_LAYER = "FloodHazard100y";
+const MITECO_WMS = "https://wms.mapama.gob.es/sig/agua/ZI_ARPSI";
+const MITECO_LAYER = "NZ.RiskZone";
+const MITECO_STYLE = "Agua_Zi_ARPSI";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -26,33 +27,26 @@ export async function GET(req: Request) {
     const minLon = lonNum - delta;
     const maxLon = lonNum + delta;
     const bbox = `${minLat},${minLon},${maxLat},${maxLon}`;
-    return `${COPERNICUS_WMS}?SERVICE=WMS&REQUEST=GetFeatureInfo&VERSION=1.3.0&CRS=EPSG:4326&BBOX=${bbox}&WIDTH=101&HEIGHT=101&I=50&J=50&LAYERS=${COPERNICUS_LAYER}&QUERY_LAYERS=${COPERNICUS_LAYER}&INFO_FORMAT=application/json`;
+    return `${MITECO_WMS}?SERVICE=WMS&REQUEST=GetFeatureInfo&VERSION=1.3.0&CRS=EPSG:4326&BBOX=${bbox}&WIDTH=101&HEIGHT=101&I=50&J=50&LAYERS=${MITECO_LAYER}&QUERY_LAYERS=${MITECO_LAYER}&STYLES=${MITECO_STYLE}&INFO_FORMAT=application/json&FEATURE_COUNT=1`;
   };
 
-  const extractNumeric = (payload: any, rawText: string) => {
-    if (payload?.features?.length) {
-      const props = payload.features[0]?.properties ?? {};
-      for (const value of Object.values(props)) {
-        if (typeof value === "number" && Number.isFinite(value)) return value;
-        if (typeof value === "string") {
-          const parsed = Number(value);
-          if (Number.isFinite(parsed)) return parsed;
-        }
-      }
-    }
-
-    const match = rawText.match(/-?\d+(\.\d+)?/);
-    if (match) return Number(match[0]);
-    return null;
+  const extractProperties = (payload: any) => {
+    if (!payload?.features?.length) return null;
+    return payload.features[0]?.properties ?? null;
   };
 
-  const classifyRisk = (value: number | null) => {
-    if (value === null) return "Desconocido";
-    if (value <= 0) return "Muy bajo";
-    if (value <= 0.2) return "Bajo";
-    if (value <= 0.5) return "Medio";
-    if (value <= 0.8) return "Alto";
-    return "Muy alto";
+  const pickDetails = (props: Record<string, any>) => ({
+    info_url: props["Información"] ?? null,
+    nombre_arpsi: props["Nombre ARPSI"] ?? null,
+    nombre_subtramo: props["Nombre subtramo ARPSI"] ?? null,
+    inundaciones_historicas: props["Nº inundaciones históricas documentadas"] ?? null,
+    fecha_ultima_inundacion: props["Fecha última inundación documentada"] ?? null,
+    estado: props["Estado"] ?? null,
+  });
+
+  const classifyRisk = (hasFeature: boolean) => {
+    if (hasFeature) return "En ARPSI";
+    return "Fuera ARPSI";
   };
 
   const fetchWithTimeout = async (url: string, timeoutMs = 6000) => {
@@ -80,47 +74,73 @@ export async function GET(req: Request) {
     const response = await fetchWithTimeout(url);
     if (!response.ok) {
       return NextResponse.json({
-        source: "Copernicus GloFAS WMS",
+        source: "MITECO WMS ARPSI",
         method: "GetFeatureInfo",
-        layer: COPERNICUS_LAYER,
+        layer: MITECO_LAYER,
         value: null,
         risk_level: "Desconocido",
-        scale_note: "Indice relativo, interpretacion aproximada",
+        scale_note: "ARPSI = area de riesgo potencial significativo de inundacion",
         warning:
           response.status > 0
             ? `HTTP ${response.status}`
-            : "No se pudo consultar Copernicus",
+            : "No se pudo consultar MITECO",
       });
     }
 
     const text = response.text ?? "";
+    if (!text.trim()) {
+      return NextResponse.json({
+        source: "MITECO WMS ARPSI",
+        method: "GetFeatureInfo",
+        layer: MITECO_LAYER,
+        value: null,
+        risk_level: "Desconocido",
+        scale_note: "ARPSI = area de riesgo potencial significativo de inundacion",
+        warning: "Respuesta vacia del servicio WMS",
+      });
+    }
     let json: any = null;
     try {
       json = JSON.parse(text);
     } catch {
       json = null;
     }
+    if (!json || !Array.isArray(json.features)) {
+      return NextResponse.json({
+        source: "MITECO WMS ARPSI",
+        method: "GetFeatureInfo",
+        layer: MITECO_LAYER,
+        value: null,
+        risk_level: "Desconocido",
+        scale_note: "ARPSI = area de riesgo potencial significativo de inundacion",
+        warning: "Respuesta WMS no valida",
+      });
+    }
 
-    let value = extractNumeric(json, text);
-    if (value !== null && value < 0) value = null;
+    const properties = extractProperties(json);
+    const hasFeature = Boolean(properties);
+    const details = properties ? pickDetails(properties) : null;
 
     return NextResponse.json({
-      source: "Copernicus GloFAS WMS",
+      source: "MITECO WMS ARPSI",
       method: "GetFeatureInfo",
-      layer: COPERNICUS_LAYER,
-      value,
-      risk_level: classifyRisk(value),
-      scale_note: "Indice relativo, interpretacion aproximada",
+      layer: MITECO_LAYER,
+      value: hasFeature ? 1 : 0,
+      risk_level: classifyRisk(hasFeature),
+      scale_note:
+        "ARPSI = area de riesgo potencial significativo de inundacion (1 dentro, 0 fuera)",
+      details,
+      raw_properties: properties,
     });
   } catch (err) {
     console.error(err);
     return NextResponse.json({
-      source: "Copernicus GloFAS WMS",
+      source: "MITECO WMS ARPSI",
       method: "GetFeatureInfo",
-      layer: COPERNICUS_LAYER,
+      layer: MITECO_LAYER,
       value: null,
       risk_level: "Desconocido",
-      scale_note: "Indice relativo, interpretacion aproximada",
+      scale_note: "ARPSI = area de riesgo potencial significativo de inundacion",
       warning: "Error al consultar riesgo de inundacion",
     });
   }

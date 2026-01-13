@@ -119,7 +119,8 @@ Luego usa exactamente estos subtítulos en el informe y en texto plano: "Descrip
         type: 'function',
         function: {
           name: 'riesgoInundacion',
-          description: 'Consulta riesgo de inundación para una ubicación (Copernicus).',
+          description:
+            'Consulta si una ubicación está dentro de un ARPSI (MITECO) mediante WMS.',
           parameters: {
             type: 'object',
             properties: {
