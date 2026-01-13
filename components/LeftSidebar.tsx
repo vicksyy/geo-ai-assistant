@@ -188,7 +188,11 @@ export default function LeftSidebar({
           onClick={() => onHistoryClick?.()}
           onMouseEnter={(e) => {
             const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-            setTooltip({ name: 'Histórico', top: rect.top + rect.height / 2, left: rect.right });
+            setTooltip({
+              name: 'Generar histórico',
+              top: rect.top + rect.height / 2,
+              left: rect.right,
+            });
           }}
           onMouseLeave={() => setTooltip(null)}
         >
@@ -201,7 +205,11 @@ export default function LeftSidebar({
           onClick={() => onSaveClick?.()}
           onMouseEnter={(e) => {
             const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-            setTooltip({ name: 'Notas y comentarios', top: rect.top + rect.height / 2, left: rect.right });
+            setTooltip({
+              name: 'Guardar ubicación y comentario',
+              top: rect.top + rect.height / 2,
+              left: rect.right,
+            });
           }}
           onMouseLeave={() => setTooltip(null)}
         >

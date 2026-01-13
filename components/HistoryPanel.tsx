@@ -28,6 +28,15 @@ type HistorySummary = {
     days: number;
     byYear?: { year: number; avgTemp: number | null; totalPrecip: number | null }[];
   };
+  events?: {
+    summary?: string;
+    items: Array<{
+      place: string;
+      magnitude: number | null;
+      date: string | null;
+      distanceKm: number | null;
+    }>;
+  };
 };
 
 const STORAGE_KEY = 'geo-ai-saved';
@@ -45,7 +54,6 @@ export default function HistoryPanel({
   onSelectLocation: (loc: Location) => void;
   mode?: 'history' | 'save';
 }) {
-  const [note, setNote] = useState('');
   const [comment, setComment] = useState('');
   const [savingError, setSavingError] = useState<string | null>(null);
   const [saved, setSaved] = useState<SavedLocation[]>([]);
@@ -81,13 +89,11 @@ export default function HistoryPanel({
       lat: location.lat,
       lon: location.lon,
       label: location.label,
-      note: note.trim() || undefined,
       comment: comment.trim() || undefined,
       savedAt: new Date().toISOString(),
     };
     const next = [entry, ...saved];
     saveLocations(next);
-    setNote('');
     setComment('');
   };
 
@@ -157,31 +163,58 @@ export default function HistoryPanel({
           <>
             <div className="space-y-3 px-4 py-4">
               <Button className="w-full" onClick={handleHistory} disabled={historyLoading}>
-                {historyLoading ? 'Analizando...' : 'Generar análisis histórico (5 años)'}
+                {historyLoading ? 'Analizando...' : 'Generar análisis histórico (50 años)'}
               </Button>
-              {historyError && <p className="text-xs text-destructive">{historyError}</p>}
+              {historyError && <p className="text-sm text-destructive">{historyError}</p>}
               {history && (
-                <div className="rounded-xl border border-border/60 bg-card px-3 py-3 text-xs text-foreground shadow-sm">
+                <div className="text-sm text-foreground">
                   <div className="font-semibold text-foreground">Resumen</div>
-                  <p className="mt-1">{history.summary}</p>
-                  <div className="mt-2 grid gap-2 text-[11px] text-muted-foreground">
+                  {(() => {
+                    const match = history.summary.match(
+                      /^Resumen de los últimos\s+\d+\s+años:\s*(.*)$/i
+                    );
+                    const rest = match?.[1]?.trim() || history.summary;
+                    const normalized =
+                      rest.length > 0
+                        ? `${rest.charAt(0).toUpperCase()}${rest.slice(1)}`
+                        : rest;
+                    return <p className="mt-1 text-muted-foreground">{normalized}</p>;
+                  })()}
+                  <div className="mt-2 grid gap-2 text-muted-foreground">
                     <div>Media temp: {history.metrics.avgTemp ?? 'N/D'} °C</div>
                     <div>Precipitación total: {history.metrics.totalPrecip ?? 'N/D'} mm</div>
-                    <div>Días analizados: {history.metrics.days}</div>
                   </div>
-                  {history.metrics.byYear?.length ? (
-                    <div className="mt-3 space-y-1 text-[11px] text-muted-foreground">
-                      {history.metrics.byYear.map((year) => (
-                        <div key={year.year}>
-                          {year.year}: {year.avgTemp ?? 'N/D'} °C · {year.totalPrecip ?? 'N/D'} mm
+                  {history.events && (
+                    <div className="mt-3">
+                      <div className="font-semibold text-foreground">
+                        Acontecimientos cercanos (sismos)
+                      </div>
+                      {history.events.summary && (
+                        <p className="mt-1 text-muted-foreground">
+                          {history.events.summary}
+                        </p>
+                      )}
+                      {history.events.items?.length ? (
+                        <div className="mt-2 space-y-1 text-muted-foreground">
+                          {history.events.items.slice(0, 5).map((item, index) => (
+                            <div key={`${item.place}-${item.date ?? index}`}>
+                              {item.date ?? 'Fecha N/D'} · M
+                              {item.magnitude !== null ? item.magnitude.toFixed(1) : 'N/D'} ·{' '}
+                              {item.distanceKm !== null ? `${item.distanceKm} km` : 'N/D'} ·{' '}
+                              {item.place}
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      ) : (
+                        <p className="mt-2 text-muted-foreground">
+                          Sin eventos cercanos reportados.
+                        </p>
+                      )}
                     </div>
-                  ) : null}
+                  )}
                 </div>
               )}
             </div>
-            <div className="border-t border-border" />
           </>
         )}
 
@@ -191,11 +224,6 @@ export default function HistoryPanel({
               <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Guardar ubicación
               </div>
-              <Input
-                placeholder="Nota rápida (opcional)"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-              />
               <Input
                 placeholder="Comentario (opcional)"
                 value={comment}
@@ -228,10 +256,9 @@ export default function HistoryPanel({
                   <div className="mt-1 text-[11px] text-muted-foreground">
                     {item.lat.toFixed(4)}, {item.lon.toFixed(4)}
                   </div>
-                  {(item.note || item.comment) && (
+                  {item.comment && (
                     <div className="mt-2 text-[11px] text-foreground">
-                      {item.note && <div>Nota: {item.note}</div>}
-                      {item.comment && <div>Comentario: {item.comment}</div>}
+                      <div>Comentario: {item.comment}</div>
                     </div>
                   )}
                   <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">

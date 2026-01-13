@@ -5,6 +5,19 @@ export async function GET(req: Request) {
   const lat = searchParams.get('lat');
   const lon = searchParams.get('lon');
 
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const haversineKm = (a: { lat: number; lon: number }, b: { lat: number; lon: number }) => {
+    const earthRadiusKm = 6371;
+    const dLat = toRadians(b.lat - a.lat);
+    const dLon = toRadians(b.lon - a.lon);
+    const lat1 = toRadians(a.lat);
+    const lat2 = toRadians(b.lat);
+    const h =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+    return 2 * earthRadiusKm * Math.asin(Math.sqrt(h));
+  };
+
   if (!lat || !lon) {
     return NextResponse.json({ error: 'Debe proporcionar lat y lon' }, { status: 400 });
   }
@@ -18,7 +31,7 @@ export async function GET(req: Request) {
   try {
     const end = new Date();
     const start = new Date();
-    start.setFullYear(end.getFullYear() - 5);
+    start.setFullYear(end.getFullYear() - 50);
     const formatDate = (d: Date) => d.toISOString().slice(0, 10);
 
     const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${latNum}&longitude=${lonNum}&start_date=${formatDate(
@@ -92,6 +105,63 @@ export async function GET(req: Request) {
         : ''
     }`;
 
+    const events = await (async () => {
+      const startDate = formatDate(start);
+      const endDate = formatDate(end);
+      const radiusKm = 100;
+      const minMagnitude = 4.5;
+      const eventsUrl = `https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=${startDate}&endtime=${endDate}&latitude=${latNum}&longitude=${lonNum}&maxradiuskm=${radiusKm}&minmagnitude=${minMagnitude}&orderby=time&limit=50`;
+      try {
+        const eventsRes = await fetch(eventsUrl, {
+          headers: { 'User-Agent': 'geo-ai-assistant/1.0' },
+        });
+        if (!eventsRes.ok) {
+          return {
+            summary: 'No se pudieron consultar eventos cercanos.',
+            items: [],
+          };
+        }
+        const eventsData = await eventsRes.json();
+        const items = (eventsData?.features ?? [])
+          .map((feature: any) => {
+            const props = feature?.properties ?? {};
+            const coords = feature?.geometry?.coordinates ?? [];
+            const lon = Number(coords[0]);
+            const lat = Number(coords[1]);
+            const magnitude = Number(props.mag);
+            const time = Number(props.time);
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+            return {
+              place: String(props.place ?? 'Sin localización'),
+              magnitude: Number.isFinite(magnitude) ? magnitude : null,
+              date: Number.isFinite(time)
+                ? new Date(time).toISOString().slice(0, 10)
+                : null,
+              distanceKm: Math.round(
+                haversineKm({ lat: latNum, lon: lonNum }, { lat, lon })
+              ),
+            };
+          })
+          .filter(Boolean);
+        if (!items.length) {
+          return {
+            summary: `Sin eventos sísmicos >= ${minMagnitude} en 100 km (últimos 50 años).`,
+            items: [],
+          };
+        }
+        return {
+          summary: `${items.length} sismos >= ${minMagnitude} en 100 km (últimos 50 años).`,
+          items,
+        };
+      } catch (err) {
+        console.error(err);
+        return {
+          summary: 'No se pudieron consultar eventos cercanos.',
+          items: [],
+        };
+      }
+    })();
+
     return NextResponse.json({
       summary,
       metrics: {
@@ -100,6 +170,7 @@ export async function GET(req: Request) {
         days,
         byYear,
       },
+      events,
     });
   } catch (err) {
     console.error(err);
