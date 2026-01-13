@@ -134,12 +134,12 @@ export default function LeftSidebar({
   return (
     <>
       {/* Desktop */}
-      <aside className="hidden md:flex w-[3vw] min-w-12 flex-col items-center justify-start gap-6 pt-4 z-3000 bg-card/90 text-foreground shadow-lg border border-border relative">
+      <aside className="hidden md:flex w-[3vw] min-w-12 flex-col items-center justify-start gap-4 pt-3 z-[3000] bg-card/90 text-foreground shadow-lg border border-border relative">
         <ThemeToggle className="border-0 shadow-none" />
 
         <button
           type="button"
-          className="mt-12 w-10 h-10 flex items-center justify-center rounded-lg text-foreground hover:bg-accent transition relative"
+          className="mt-8 w-10 h-10 flex items-center justify-center rounded-lg text-foreground hover:bg-accent transition relative"
           onClick={onLayersToggle}
           onMouseEnter={(e) => {
             const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
@@ -154,7 +154,7 @@ export default function LeftSidebar({
 
         <button
           type="button"
-          className="mt-8 w-10 h-10 flex items-center justify-center rounded-lg text-foreground hover:bg-accent transition relative"
+          className="mt-6 w-10 h-10 flex items-center justify-center rounded-lg text-foreground hover:bg-accent transition relative"
           onClick={onWeatherToggle}
           onMouseEnter={(e) => {
             const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
@@ -211,7 +211,7 @@ export default function LeftSidebar({
         {reportAvailable && (
           <button
             type="button"
-            className={`w-10 h-10 flex items-center justify-center rounded-lg text-foreground hover:bg-accent transition relative ${
+            className={`mt-8 w-10 h-10 flex items-center justify-center rounded-lg text-foreground hover:bg-accent transition relative ${
               reportOpen ? 'bg-accent' : ''
             }`}
             onClick={() => onReportToggle?.()}
@@ -243,7 +243,7 @@ export default function LeftSidebar({
       )}
 
       <div
-        className={`fixed inset-x-0 top-0 md:inset-auto md:z-[6000] ${
+        className={`fixed inset-x-0 top-0 md:inset-auto md:z-[2000] ${
           layersOpen
             ? 'bottom-0 z-[1400] pointer-events-auto'
             : 'bottom-16 z-[1200] pointer-events-none'
@@ -260,9 +260,9 @@ export default function LeftSidebar({
 
         <div
           id="layers-panel"
-          className={`fixed left-0 right-0 h-[clamp(360px,55vh,520px)] rounded-t-2xl bg-card border-t border-border shadow-2xl p-4 text-foreground transition-transform duration-300 ease-out md:left-[calc(var(--sidebar-offset)+1rem)] md:top-24 md:bottom-auto md:right-auto md:h-auto md:w-72 md:rounded-xl md:border md:border-border md:transition-none md:p-4 md:h-[clamp(420px,60vh,640px)] ${
-            layersOpen ? 'bottom-0 translate-y-0 z-[1500]' : 'bottom-16 translate-y-full z-[800] md:translate-y-0'
-          } ${layersOpen ? 'md:block' : 'md:hidden'}`}
+          className={`fixed left-0 right-0 h-[clamp(360px,55vh,520px)] rounded-t-2xl bg-card border-t border-border shadow-2xl p-4 text-foreground transition-transform duration-300 ease-out md:left-[calc(var(--sidebar-offset)+1rem)] md:top-24 md:bottom-auto md:right-auto md:h-auto md:w-72 md:rounded-xl md:border md:border-border md:p-4 md:h-[clamp(420px,60vh,640px)] md:transition-all md:duration-300 md:ease-out md:transform md:translate-y-0 ${
+            layersOpen ? 'bottom-0 translate-y-0 z-[1500]' : 'bottom-16 translate-y-full z-[800]'
+          } ${layersOpen ? 'md:translate-x-0 md:opacity-100' : 'md:-translate-x-full md:opacity-0 md:pointer-events-none'}`}
         >
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-foreground">Capas del mapa</h3>
@@ -344,7 +344,7 @@ export default function LeftSidebar({
       </div>
 
       <div
-        className={`fixed inset-x-0 top-0 md:inset-auto md:z-[6000] ${
+        className={`fixed inset-x-0 top-0 md:inset-auto md:z-[2000] ${
           weatherOpen
             ? 'bottom-0 z-[1400] pointer-events-auto'
             : 'bottom-16 z-[1200] pointer-events-none'
@@ -361,9 +361,9 @@ export default function LeftSidebar({
 
         <div
           id="weather-panel"
-          className={`fixed left-0 right-0 h-[clamp(320px,45vh,420px)] rounded-t-2xl bg-card border-t border-border shadow-2xl p-4 text-foreground transition-transform duration-300 ease-out md:left-[calc(var(--sidebar-offset)+1rem)] md:top-24 md:bottom-auto md:right-auto md:h-auto md:w-72 md:rounded-xl md:border md:border-border md:transition-none md:p-4 md:h-[clamp(320px,50vh,520px)] ${
-            weatherOpen ? 'bottom-0 translate-y-0 z-[1500]' : 'bottom-16 translate-y-full z-[800] md:translate-y-0'
-          } ${weatherOpen ? 'md:block' : 'md:hidden'}`}
+          className={`fixed left-0 right-0 h-[clamp(320px,45vh,420px)] rounded-t-2xl bg-card border-t border-border shadow-2xl p-4 text-foreground transition-transform duration-300 ease-out md:left-[calc(var(--sidebar-offset)+1rem)] md:top-24 md:bottom-auto md:right-auto md:h-auto md:w-72 md:rounded-xl md:border md:border-border md:p-4 md:h-[clamp(320px,50vh,520px)] md:transition-all md:duration-300 md:ease-out md:transform md:translate-y-0 ${
+            weatherOpen ? 'bottom-0 translate-y-0 z-[1500]' : 'bottom-16 translate-y-full z-[800]'
+          } ${weatherOpen ? 'md:translate-x-0 md:opacity-100' : 'md:-translate-x-full md:opacity-0 md:pointer-events-none'}`}
         >
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-foreground">Clima</h3>
