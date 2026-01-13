@@ -1,5 +1,8 @@
-export type BaseLayerId = 'osm' | 'topo' | 'satellite' | 'ign' | 'ica';
-export type OverlayLayerId = 'railways' | 'transport' | 'inundacion' | 'refugios';
+export type BaseLayerId = 'osm' | 'topo' | 'satellite' | 'ica';
+export type OverlayLayerId = 'railways' | 'transport' | 'inundacion' | 'refugios' | 'airtemp';
+
+const openWeatherKey = process.env.NEXT_PUBLIC_OPENWEATHER_KEY ?? '';
+const openWeatherTempUrl = `https://tile.openweathermap.org/map/temp_new/{z}/{x}/{y}.png?appid=${openWeatherKey}`;
 
 export const baseLayerOptions: {
   id: BaseLayerId;
@@ -28,13 +31,6 @@ export const baseLayerOptions: {
     label: 'Esri Satélite',
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     attribution: 'Tiles © Esri',
-    maxZoom: 19,
-  },
-  {
-    id: 'ign',
-    label: 'IGN Base (Callejero)',
-    url: 'https://www.ign.es/wmts/ign-base?service=WMTS&request=GetTile&version=1.0.0&layer=IGNBaseTodo&style=default&tilematrixset=GoogleMapsCompatible&tilematrix={z}&tilerow={y}&tilecol={x}&format=image/jpeg',
-    attribution: '© Instituto Geografico Nacional de Espana',
     maxZoom: 19,
   },
   {
@@ -86,6 +82,14 @@ export const overlayLayerOptions: {
     version: '1.3.0',
     attribution: '© Copernicus Emergency Management Service (GloFAS)',
   },
+  {
+    id: 'airtemp',
+    label: 'Temperatura del aire (OpenWeather)',
+    kind: 'tile',
+    url: openWeatherTempUrl,
+    attribution: '© OpenWeather',
+    maxZoom: 19,
+  },
 ];
 
 export function buildLayers(L: typeof import('leaflet')) {
@@ -102,13 +106,9 @@ export function buildLayers(L: typeof import('leaflet')) {
       attribution: baseLayerOptions[2].attribution,
       maxZoom: baseLayerOptions[2].maxZoom,
     }),
-    ign: L.tileLayer(baseLayerOptions[3].url, {
+    ica: L.tileLayer(baseLayerOptions[3].url, {
       attribution: baseLayerOptions[3].attribution,
       maxZoom: baseLayerOptions[3].maxZoom,
-    }),
-    ica: L.tileLayer(baseLayerOptions[4].url, {
-      attribution: baseLayerOptions[4].attribution,
-      maxZoom: baseLayerOptions[4].maxZoom,
     }),
   };
 
@@ -127,7 +127,7 @@ export function buildLayers(L: typeof import('leaflet')) {
         acc[layer.id] = L.tileLayer(layer.url, {
           attribution: layer.attribution,
           maxZoom: layer.maxZoom,
-          opacity: 0.7,
+          opacity: 0.95,
         });
       }
       return acc;

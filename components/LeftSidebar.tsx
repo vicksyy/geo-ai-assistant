@@ -40,6 +40,10 @@ export default function LeftSidebar({
   const aqiPreview = aqicnToken
     ? `https://tiles.waqi.info/tiles/usepa-aqi/6/32/21.png?token=${aqicnToken}`
     : 'https://a.tile.openstreetmap.org/6/32/21.png';
+  const openWeatherKey = process.env.NEXT_PUBLIC_OPENWEATHER_KEY ?? '';
+  const openWeatherPreview = openWeatherKey
+    ? `https://tile.openweathermap.org/map/temp_new/6/32/21.png?appid=${openWeatherKey}`
+    : 'https://a.tile.openstreetmap.org/6/32/21.png';
   const mapTypeOptions = [
     {
       id: 'osm' as BaseLayerId,
@@ -51,12 +55,6 @@ export default function LeftSidebar({
       label: 'Satelite',
       preview:
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/6/21/32',
-    },
-    {
-      id: 'ign' as BaseLayerId,
-      label: 'Callejero',
-      preview:
-        'https://www.ign.es/wmts/ign-base?service=WMTS&request=GetTile&version=1.0.0&layer=IGNBaseTodo&style=default&tilematrixset=GoogleMapsCompatible&tilematrix=6&tilerow=21&tilecol=32&format=image/jpeg',
     },
   ];
 
@@ -76,6 +74,11 @@ export default function LeftSidebar({
       label: 'Riesgo inundacion',
       preview:
         'https://ows.globalfloods.eu/glofas-ows/ows.py?service=WMS&request=GetMap&version=1.1.1&layers=FloodHazard100y&styles=&bbox=-6,36,3,44&srs=EPSG:4326&width=256&height=256&format=image/png&transparent=true',
+    },
+    {
+      id: 'airtemp' as OverlayLayerId,
+      label: 'Temperatura',
+      preview: openWeatherPreview,
     },
     {
       id: 'refugios' as OverlayLayerId,
