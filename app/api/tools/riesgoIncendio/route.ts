@@ -136,6 +136,7 @@ export async function GET(req: Request) {
     }
 
     if (!result.ok) {
+      const status = result.response?.status;
       return NextResponse.json({
         source: "Copernicus GWIS WMS",
         method: "GetFeatureInfo",
@@ -146,8 +147,8 @@ export async function GET(req: Request) {
         danger: null,
         scale_note: "FWI (Fire Weather Index) de GWIS/ECMWF",
         warning:
-          result.response?.status > 0
-            ? `HTTP ${result.response.status}`
+          typeof status === "number" && status > 0
+            ? `HTTP ${status}`
             : "No se pudo consultar GWIS",
       });
     }
