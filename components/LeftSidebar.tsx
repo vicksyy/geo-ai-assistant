@@ -99,20 +99,20 @@ export default function LeftSidebar({
       iconBgClass: 'bg-rose-500/90',
     },
     {
-      id: 'clouds' as OverlayLayerId,
-      label: 'Nubes',
-      preview: mapPreview,
-      icon: Cloud,
-      iconClass: 'text-white',
-      iconBgClass: 'bg-slate-500/90',
-    },
-    {
       id: 'precipitation' as OverlayLayerId,
       label: 'Precipitación',
       preview: mapPreview,
       icon: Droplets,
       iconClass: 'text-white',
       iconBgClass: 'bg-sky-500/90',
+    },
+    {
+      id: 'clouds' as OverlayLayerId,
+      label: 'Nubes',
+      preview: mapPreview,
+      icon: Cloud,
+      iconClass: 'text-white',
+      iconBgClass: 'bg-slate-500/90',
     },
     {
       id: 'pressure' as OverlayLayerId,
@@ -410,8 +410,8 @@ export default function LeftSidebar({
                     className="h-full w-full object-cover"
                     loading="lazy"
                   />
-                  <div className="absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-sky-500/90 text-white shadow-md">
-                    <Wind className="h-5 w-5" />
+                  <div className="absolute left-1/2 top-1/2 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-emerald-500/90 text-white shadow-md md:h-9 md:w-9">
+                    <Wind className="h-6 w-6 md:h-5 md:w-5" />
                   </div>
                 </div>
                 <span className="text-center text-[11px] text-foreground">Calidad del aire</span>
@@ -436,9 +436,9 @@ export default function LeftSidebar({
                       loading="lazy"
                     />
                     <div
-                      className={`absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full shadow-md ${layer.iconBgClass}`}
+                      className={`absolute left-1/2 top-1/2 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full shadow-md md:h-9 md:w-9 ${layer.iconBgClass}`}
                     >
-                      <layer.icon className={`h-5 w-5 ${layer.iconClass}`} />
+                      <layer.icon className={`h-6 w-6 md:h-5 md:w-5 ${layer.iconClass}`} />
                     </div>
                   </div>
                   <span className="text-center text-[11px] text-foreground">{layer.label}</span>
