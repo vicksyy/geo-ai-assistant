@@ -1338,33 +1338,21 @@ return (
 
     {layerState?.baseId === 'ica' && (
       <>
-        <div className="absolute left-3 top-20 z-[1100] w-[170px] rounded-2xl border border-black/10 bg-black/55 px-3 py-3 text-white shadow-xl backdrop-blur sm:left-4 sm:top-24 sm:w-[190px] md:hidden">
+        <div className="absolute left-3 top-20 z-[1100] w-[150px] rounded-2xl border border-black/10 bg-black/55 px-3 py-3 text-white shadow-xl backdrop-blur sm:left-4 sm:top-24 sm:w-[170px] md:hidden">
           <div className="text-[11px] font-semibold tracking-wide">ICA (ES)</div>
-          <div className="mt-3 space-y-2 text-[11px]">
-            <div className="flex items-start gap-2">
-              <span className="mt-0.5 h-6 w-1.5 rounded-full" style={{ backgroundColor: '#6a0dad' }} />
-              <span>Extremadamente desfavorable</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="mt-0.5 h-6 w-1.5 rounded-full" style={{ backgroundColor: '#8b0000' }} />
-              <span>Muy desfavorable</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="mt-0.5 h-6 w-1.5 rounded-full" style={{ backgroundColor: '#f46d43' }} />
-              <span>Desfavorable</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="mt-0.5 h-6 w-1.5 rounded-full" style={{ backgroundColor: '#fdae61' }} />
-              <span>Regular</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="mt-0.5 h-6 w-1.5 rounded-full" style={{ backgroundColor: '#4daf4a' }} />
-              <span>Razonablemente buena</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="mt-0.5 h-6 w-1.5 rounded-full" style={{ backgroundColor: '#2b83ba' }} />
-              <span>Buena</span>
-            </div>
+          <div className="mt-3 grid grid-cols-[6px_1fr] grid-rows-6 items-stretch gap-x-2 gap-y-0 text-[11px]">
+            <span className="h-full w-[6px]" style={{ backgroundColor: '#6a0dad' }} />
+            <span className="py-0.5 leading-tight">Extremadamente desfavorable</span>
+            <span className="h-full w-[6px]" style={{ backgroundColor: '#8b0000' }} />
+            <span className="py-0.5 leading-tight">Muy desfavorable</span>
+            <span className="h-full w-[6px]" style={{ backgroundColor: '#f46d43' }} />
+            <span className="py-0.5 leading-tight">Desfavorable</span>
+            <span className="h-full w-[6px]" style={{ backgroundColor: '#fdae61' }} />
+            <span className="py-0.5 leading-tight">Regular</span>
+            <span className="h-full w-[6px]" style={{ backgroundColor: '#4daf4a' }} />
+            <span className="py-0.5 leading-tight">Razonablemente buena</span>
+            <span className="h-full w-[6px]" style={{ backgroundColor: '#2b83ba' }} />
+            <span className="py-0.5 leading-tight">Buena</span>
           </div>
         </div>
 
