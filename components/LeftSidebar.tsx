@@ -61,12 +61,12 @@ export default function LeftSidebar({
   const mapTypeOptions = [
     {
       id: 'osm' as BaseLayerId,
-      label: 'Estandar',
+      label: 'Estándar',
       preview: 'https://a.tile.openstreetmap.org/6/32/21.png',
     },
     {
       id: 'satellite' as BaseLayerId,
-      label: 'Satelite',
+      label: 'Satélite',
       preview:
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/6/21/32',
     },
@@ -108,7 +108,7 @@ export default function LeftSidebar({
     },
     {
       id: 'precipitation' as OverlayLayerId,
-      label: 'Precipitacion',
+      label: 'Precipitación',
       preview: mapPreview,
       icon: Droplets,
       iconClass: 'text-white',
@@ -116,7 +116,7 @@ export default function LeftSidebar({
     },
     {
       id: 'pressure' as OverlayLayerId,
-      label: 'Presion nivel del mar',
+      label: 'Presión nivel del mar',
       preview: mapPreview,
       icon: Gauge,
       iconClass: 'text-white',
@@ -124,7 +124,7 @@ export default function LeftSidebar({
     },
     {
       id: 'inundacion' as OverlayLayerId,
-      label: 'Riesgo inundacion (ARPSI)',
+      label: 'Riesgo Inundación (ARPSI)',
       preview: mapPreview,
       icon: CloudRain,
       iconClass: 'text-white',

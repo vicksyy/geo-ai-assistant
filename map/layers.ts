@@ -87,7 +87,7 @@ export const overlayLayerOptions: {
   },
   {
     id: 'inundacion',
-    label: 'Riesgo de inundacion (ARPSI)',
+    label: 'Riesgo Inundación (ARPSI)',
     kind: 'wms',
     url: 'https://wms.mapama.gob.es/sig/agua/ZI_ARPSI',
     layers: 'NZ.RiskZone',
@@ -119,7 +119,7 @@ export const overlayLayerOptions: {
   },
   {
     id: 'precipitation',
-    label: 'Precipitacion (OpenWeather)',
+    label: 'Precipitación (OpenWeather)',
     kind: 'tile',
     url: openWeatherPrecipitationUrl,
     attribution: '© OpenWeather',
@@ -129,7 +129,7 @@ export const overlayLayerOptions: {
   },
   {
     id: 'pressure',
-    label: 'Presion a nivel del mar (OpenWeather)',
+    label: 'Presión nivel del mar (OpenWeather)',
     kind: 'tile',
     url: openWeatherPressureUrl,
     attribution: '© OpenWeather',
