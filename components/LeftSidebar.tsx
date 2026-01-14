@@ -168,7 +168,7 @@ export default function LeftSidebar({
           <Cloud className="h-5 w-5" />
         </button>
 
-        <div className="flex-[0.05]" />
+        <div className="flex-[0.2]" />
 
         <button
           type="button"
