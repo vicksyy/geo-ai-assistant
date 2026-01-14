@@ -32,6 +32,8 @@ export default function SearchInput({ onResult }: SearchInputProps) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const cacheRef = useRef<Map<string, any[]>>(new Map());
+  const lastCommittedQueryRef = useRef<string | null>(null);
+  const suppressSuggestionsRef = useRef(false);
 
   const handleSearch = async (value?: string) => {
     const query = value ?? direccion;
@@ -49,6 +51,9 @@ export default function SearchInput({ onResult }: SearchInputProps) {
           placeClass: data.class ?? null,
           placeType: data.type ?? null,
         }); // enviamos coords al page
+        lastCommittedQueryRef.current = query.trim();
+        suppressSuggestionsRef.current = true;
+        setSuggestions([]);
         setShowSuggestions(false);
         return;
       }
@@ -68,6 +73,9 @@ export default function SearchInput({ onResult }: SearchInputProps) {
               placeClass: first.class ?? null,
               placeType: first.type ?? null,
             });
+            lastCommittedQueryRef.current = query.trim();
+            suppressSuggestionsRef.current = true;
+            setSuggestions([]);
             setShowSuggestions(false);
             return;
           }
@@ -88,6 +96,9 @@ export default function SearchInput({ onResult }: SearchInputProps) {
             placeClass: first.class ?? null,
             placeType: first.type ?? null,
           });
+          lastCommittedQueryRef.current = query.trim();
+          suppressSuggestionsRef.current = true;
+          setSuggestions([]);
           setShowSuggestions(false);
           return;
         }
@@ -111,6 +122,11 @@ export default function SearchInput({ onResult }: SearchInputProps) {
 
   useEffect(() => {
     const query = direccion.trim();
+    if (suppressSuggestionsRef.current && query === lastCommittedQueryRef.current) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
     if (!query || query.length < 3) {
       setSuggestions([]);
       setShowSuggestions(false);
@@ -209,7 +225,16 @@ export default function SearchInput({ onResult }: SearchInputProps) {
         <Input
           placeholder="Introduce una dirección"
           value={direccion}
-          onChange={(e) => setDireccion(e.target.value)}
+          onChange={(e) => {
+            const nextValue = e.target.value;
+            if (
+              suppressSuggestionsRef.current &&
+              nextValue.trim() !== (lastCommittedQueryRef.current ?? '')
+            ) {
+              suppressSuggestionsRef.current = false;
+            }
+            setDireccion(nextValue);
+          }}
           onKeyDown={handleKeyDown}
           onFocus={() => {
             if (suggestions.length) setShowSuggestions(true);
@@ -248,6 +273,9 @@ export default function SearchInput({ onResult }: SearchInputProps) {
                   className="w-full px-3 py-2 text-left hover:bg-accent"
                   onClick={() => {
                     setDireccion(item.display_name);
+                    lastCommittedQueryRef.current = item.display_name.trim();
+                    suppressSuggestionsRef.current = true;
+                    setSuggestions([]);
                     onResult({
                       lat: item.lat,
                       lon: item.lon,
