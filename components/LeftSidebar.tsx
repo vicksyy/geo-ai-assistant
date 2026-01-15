@@ -70,14 +70,14 @@ export default function LeftSidebar({
       preview:
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/6/21/32',
     },
-  ];
-
-  const detailOptions = [
     {
-      id: 'transport' as OverlayLayerId,
+      id: 'transport' as BaseLayerId,
       label: 'Transporte',
       preview: 'https://tileserver.memomaps.de/tilegen/6/32/21.png',
     },
+  ];
+
+  const detailOptions = [
     {
       id: 'railways' as OverlayLayerId,
       label: 'Ferrocarriles',

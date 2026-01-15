@@ -1,7 +1,6 @@
-export type BaseLayerId = 'osm' | 'topo' | 'satellite' | 'ica';
+export type BaseLayerId = 'osm' | 'topo' | 'satellite' | 'transport' | 'ica';
 export type OverlayLayerId =
   | 'railways'
-  | 'transport'
   | 'inundacion'
   | 'refugios'
   | 'airtemp'
@@ -45,6 +44,13 @@ export const baseLayerOptions: {
     maxZoom: 19,
   },
   {
+    id: 'transport',
+    label: 'Transporte',
+    url: 'https://tileserver.memomaps.de/tilegen/{z}/{x}/{y}.png',
+    attribution: '© OpenStreetMap contributors, tiles by Memomaps',
+    maxZoom: 19,
+  },
+  {
     id: 'ica',
     label: 'Calidad del aire (ICA)',
     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -68,15 +74,9 @@ export const overlayLayerOptions: {
   styles?: string;
   opacity?: number;
   className?: string;
+  zIndex?: number;
+  pane?: string;
 }[] = [
-  {
-    id: 'transport',
-    label: 'Transporte',
-    kind: 'tile',
-    url: 'https://tileserver.memomaps.de/tilegen/{z}/{x}/{y}.png',
-    attribution: '© OpenStreetMap contributors, tiles by Memomaps',
-    maxZoom: 19,
-  },
   {
     id: 'railways',
     label: 'Ferrocarriles',
@@ -84,6 +84,8 @@ export const overlayLayerOptions: {
     url: 'https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png',
     attribution: '© OpenRailwayMap',
     maxZoom: 19,
+    pane: 'overlayPane',
+    zIndex: 500,
   },
   {
     id: 'inundacion',
@@ -153,9 +155,13 @@ export function buildLayers(L: typeof import('leaflet')) {
       attribution: baseLayerOptions[2].attribution,
       maxZoom: baseLayerOptions[2].maxZoom,
     }),
-    ica: L.tileLayer(baseLayerOptions[3].url, {
+    transport: L.tileLayer(baseLayerOptions[3].url, {
       attribution: baseLayerOptions[3].attribution,
       maxZoom: baseLayerOptions[3].maxZoom,
+    }),
+    ica: L.tileLayer(baseLayerOptions[4].url, {
+      attribution: baseLayerOptions[4].attribution,
+      maxZoom: baseLayerOptions[4].maxZoom,
     }),
   };
 
@@ -171,6 +177,8 @@ export function buildLayers(L: typeof import('leaflet')) {
           attribution: layer.attribution,
           className: layer.id === 'inundacion' ? 'flood-blur' : undefined,
           opacity: layer.opacity ?? 1,
+          ...(layer.zIndex !== undefined ? { zIndex: layer.zIndex } : {}),
+          ...(layer.pane ? { pane: layer.pane } : {}),
         });
       } else {
         acc[layer.id] = L.tileLayer(layer.url, {
@@ -178,6 +186,8 @@ export function buildLayers(L: typeof import('leaflet')) {
           maxZoom: layer.maxZoom,
           opacity: layer.opacity ?? 0.95,
           className: layer.className,
+          ...(layer.zIndex !== undefined ? { zIndex: layer.zIndex } : {}),
+          ...(layer.pane ? { pane: layer.pane } : {}),
         });
       }
       return acc;
