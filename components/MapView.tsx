@@ -737,14 +737,7 @@ export default function MapView({
       };
 
 
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => initializeMap(pos.coords.latitude, pos.coords.longitude),
-          () => initializeMap(40.4168, -3.7038)
-        );
-      } else {
-        initializeMap(40.4168, -3.7038);
-      }
+      initializeMap(40.4168, -3.7038);
     })();
 
     return () => {
