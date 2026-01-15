@@ -237,6 +237,11 @@ export default function LeftSidebar({
         )}
 
         <div className="flex-1" />
+        <img
+          src="/Logo.png"
+          alt="Logo"
+          className="absolute bottom-3 h-[26px] w-[26px] rounded-full border border-border bg-white object-cover shadow-sm"
+        />
       </aside>
 
       {/* Tooltip encima del mapa */}
@@ -465,7 +470,7 @@ export default function LeftSidebar({
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 md:hidden z-[1300]">
-        <div className="mx-auto flex h-16 w-full items-center justify-center gap-3 bg-card/95 px-4 shadow-xl border-t border-border">
+        <div className="relative mx-auto flex h-16 w-full items-center justify-center gap-3 bg-card/95 px-4 shadow-xl border-t border-border">
           <button
             type="button"
             className="w-11 h-11 flex items-center justify-center rounded-full text-foreground hover:bg-accent transition"
@@ -513,6 +518,12 @@ export default function LeftSidebar({
               <Sparkles className="h-5 w-5" />
             </button>
           )}
+
+          <img
+            src="/Logo.png"
+            alt="Logo"
+            className="absolute right-4 h-[26px] w-[26px] rounded-full border border-border bg-white object-cover shadow-sm"
+          />
         </div>
       </div>
     </>
