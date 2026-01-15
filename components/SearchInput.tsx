@@ -30,6 +30,7 @@ export default function SearchInput({ onResult }: SearchInputProps) {
     }[]
   >([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const cacheRef = useRef<Map<string, any[]>>(new Map());
   const lastCommittedQueryRef = useRef<string | null>(null);
@@ -39,6 +40,8 @@ export default function SearchInput({ onResult }: SearchInputProps) {
     const query = value ?? direccion;
     if (!query) return;
     setLoading(true);
+    setError(null);
+    if (abortRef.current) abortRef.current.abort();
 
     try {
       const res = await fetch(`/api/tools/buscarCoordenadas?direccion=${encodeURIComponent(query)}`);
@@ -105,10 +108,14 @@ export default function SearchInput({ onResult }: SearchInputProps) {
       }
 
       const data = await res.json().catch(() => ({}));
-      alert(data.error || 'No se encontraron resultados');
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setError(data.error || 'No se encontraron resultados');
     } catch (err) {
       console.error(err);
-      alert('Error buscando dirección');
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setError('Error buscando dirección');
     } finally {
       setLoading(false);
     }
@@ -206,6 +213,12 @@ export default function SearchInput({ onResult }: SearchInputProps) {
             : prioritized(allResults);
 
         const limitedResults = finalResults.slice(0, 4);
+        if (
+          suppressSuggestionsRef.current &&
+          query === (lastCommittedQueryRef.current ?? '').trim()
+        ) {
+          return;
+        }
         cacheRef.current.set(query.toLowerCase(), limitedResults);
         setSuggestions(limitedResults);
         setShowSuggestions(limitedResults.length > 0);
@@ -221,7 +234,11 @@ export default function SearchInput({ onResult }: SearchInputProps) {
 
   return (
     <div className="relative w-full">
-      <div className="relative flex items-center rounded-full border border-border bg-card/90 px-4 py-2 shadow-lg dark:shadow-none backdrop-blur-md">
+      <div
+        className={`relative flex items-center rounded-full border bg-card/90 px-4 py-2 shadow-lg dark:shadow-none backdrop-blur-md ${
+          error ? 'border-red-500' : 'border-border'
+        }`}
+      >
         <Input
           placeholder="Introduce una dirección"
           value={direccion}
@@ -233,17 +250,27 @@ export default function SearchInput({ onResult }: SearchInputProps) {
             ) {
               suppressSuggestionsRef.current = false;
             }
+            if (error) setError(null);
             setDireccion(nextValue);
           }}
           onKeyDown={handleKeyDown}
           onFocus={() => {
             if (suggestions.length) setShowSuggestions(true);
+            if (error) setError(null);
           }}
           onBlur={() => {
             setTimeout(() => setShowSuggestions(false), 150);
           }}
-          className="flex-1 bg-transparent dark:bg-transparent border-0 shadow-none ring-0 pr-12 text-foreground placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
+          className={`flex-1 bg-transparent dark:bg-transparent border-0 shadow-none ring-0 text-foreground placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 ${
+            error ? 'pr-28' : 'pr-12'
+          }`}
         />
+
+        {error && (
+          <span className="pointer-events-none absolute right-12 text-[12px] font-semibold text-red-600">
+            {error}
+          </span>
+        )}
 
         <Button
           onClick={() => handleSearch()}
@@ -275,6 +302,8 @@ export default function SearchInput({ onResult }: SearchInputProps) {
                     setDireccion(item.display_name);
                     lastCommittedQueryRef.current = item.display_name.trim();
                     suppressSuggestionsRef.current = true;
+                    if (abortRef.current) abortRef.current.abort();
+                    if (error) setError(null);
                     setSuggestions([]);
                     onResult({
                       lat: item.lat,
