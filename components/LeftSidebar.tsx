@@ -241,6 +241,11 @@ export default function LeftSidebar({
           src="/Logo.png"
           alt="Logo"
           className="absolute bottom-3 h-[26px] w-[26px] rounded-full border border-border bg-white object-cover shadow-sm"
+          onMouseEnter={(e) => {
+            const rect = (e.currentTarget as HTMLImageElement).getBoundingClientRect();
+            setTooltip({ name: 'AtlasAI', top: rect.top + rect.height / 2, left: rect.right });
+          }}
+          onMouseLeave={() => setTooltip(null)}
         />
       </aside>
 
